@@ -1,0 +1,89 @@
+# Copyright 2025 Todd Hutchinson
+
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+
+#     http://www.apache.org/licenses/LICENSE-2.0
+
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+
+# Proprietary Software - All Rights Reserved
+#
+# Copyright (C) 2025 Tetrasurfaces
+#
+# This software is proprietary and confidential. Unauthorized copying,
+# distribution, modification, or use is strictly prohibited without
+# express written permission from Tetrasurfaces.
+def fractal_tetra(original_vertices, level, all_triangles):
+    """
+    Recursively generates Sierpinski tetrahedron triangles for the surface.
+    Collects all base-level triangular faces in all_triangles (list of [v1, v2, v3] where vi = [x,y,z]).
+   
+    Args:
+        original_vertices: List of 4 [x,y,z] for the initial tetrahedron.
+        level: Current recursion depth.
+        all_triangles: List to collect all base triangles.
+    """
+    if level == 0:
+        # Add the 4 faces of the base tetra
+        faces = [
+            [original_vertices[0], original_vertices[1], original_vertices[2]],
+            [original_vertices[0], original_vertices[1], original_vertices[3]],
+            [original_vertices[0], original_vertices[2], original_vertices[3]],
+            [original_vertices[1], original_vertices[2], original_vertices[3]]
+        ]
+        all_triangles.extend(faces)
+        return
+   
+    # Compute midpoints for subdivision
+    mid01 = [(original_vertices[0][j] + original_vertices[1][j])/2 for j in range(3)]
+    mid02 = [(original_vertices[0][j] + original_vertices[2][j])/2 for j in range(3)]
+    mid03 = [(original_vertices[0][j] + original_vertices[3][j])/2 for j in range(3)]
+    mid12 = [(original_vertices[1][j] + original_vertices[2][j])/2 for j in range(3)]
+    mid13 = [(original_vertices[1][j] + original_vertices[3][j])/2 for j in range(3)]
+    mid23 = [(original_vertices[2][j] + original_vertices[3][j])/2 for j in range(3)]
+   
+    # 4 sub-tetras at corners
+    sub0 = [original_vertices[0], mid01, mid02, mid03]
+    sub1 = [original_vertices[1], mid01, mid12, mid13]
+    sub2 = [original_vertices[2], mid02, mid12, mid23]
+    sub3 = [original_vertices[3], mid03, mid13, mid23]
+   
+    # Recurse
+    for sub in [sub0, sub1, sub2, sub3]:
+        fractal_tetra(sub, level - 1, all_triangles)
+def build_mesh(x_curve, y_curve, num_points, fractal_level=3):
+    """
+    Builds 3D mesh using fractal tetrahedron, scaled by curve length.
+    Returns vertices (list of [x,y,z]) and faces (list of [idx1, idx2, idx3]).
+    Note: Vertices may have duplicates; for optimization, deduplicate if needed.
+    """
+    # Compute curve length for scale
+    curve_length = np.sum(np.sqrt(np.diff(x_curve)**2 + np.diff(y_curve)**2))
+    scale = curve_length if curve_length > 0 else 1.0
+   
+    # Initial regular tetrahedron vertices
+    orig = np.array([
+        [0, 0, 0],
+        [1, 0, 0],
+        [0.5, np.sqrt(3)/2, 0],
+        [0.5, np.sqrt(3)/6, np.sqrt(6)/3]
+    ]) * scale
+   
+    all_triangles = [] # List of [[x1,y1,z1], [x2,y2,z2], [x3,y3,z3]]
+    fractal_tetra(orig.tolist(), fractal_level, all_triangles)
+   
+    # Flatten to global vertices and faces
+    vertices = []
+    faces = []
+    for tri in all_triangles:
+        base_idx = len(vertices)
+        vertices.extend(tri)
+        faces.append([base_idx, base_idx+1, base_idx+2])
+   
+    return vertices, faces
