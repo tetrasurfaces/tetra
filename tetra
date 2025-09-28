@@ -12,13 +12,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 
-# Proprietary Software - All Rights Reserved
-#
-# Copyright (C) 2025 Tetrasurfaces
-#
-# This software is proprietary and confidential. Unauthorized copying,
-# distribution, modification, or use is strictly prohibited without
-# express written permission from Tetrasurfaces.
+import numpy as np
+
 def fractal_tetra(original_vertices, level, all_triangles):
     """
     Recursively generates Sierpinski tetrahedron triangles for the surface.
@@ -57,6 +52,7 @@ def fractal_tetra(original_vertices, level, all_triangles):
     # Recurse
     for sub in [sub0, sub1, sub2, sub3]:
         fractal_tetra(sub, level - 1, all_triangles)
+
 def build_mesh(x_curve, y_curve, num_points, fractal_level=3):
     """
     Builds 3D mesh using fractal tetrahedron, scaled by curve length.
