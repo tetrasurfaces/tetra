@@ -177,15 +177,7 @@ instructions to ensure proper disposal or reuse of hardware components.
 Cryptographic Export Controls
 The Work includes cryptographic functionality. Use, distribution, or export must comply with applicable
 export control regulations (e.g., US EAR, Category 5 Part 2). Redistribution
-in jurisdictions with cryptographic restrictions requires prior xAI approval.
-
-
-Misuse and Revocation
-Misuse includes, but is not limited to, incorporation of the Work into
-competing AI or hardware systems not explicitly licensed by xAI or its
-affiliates (e.g., Tesla, X Corp). xAI reserves the right to revoke this License
-for misuse, effective upon written notice, with a 30-day period to cease
-non-compliant activities.
+in jurisdictions with cryptographic restrictions requires Licensor approval.
 
 
 Educational Institution Licensing Requirement
