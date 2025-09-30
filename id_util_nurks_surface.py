@@ -80,10 +80,10 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
             scale = inner_radius + (1 - inner_radius) * (1 - v)  # Linear blend to small inner radius
             control_points[i, j, 0] = scale * x_base[i]
             control_points[i, j, 1] = scale * y_base[i]
-            # V-like radial profile: peak at inflection, curved arms
+            # Curved V-angulation radial profile: point down with curved arms
             dist = abs(v - inflection)
-            z_norm = 1 - (dist / (0.5 + 1e-6)) ** kappa  # Normalized V, kappa controls curvature sharpness
-            z_norm = max(z_norm, 0)  # Clamp to non-negative
+            z_norm = (dist ** kappa)  # Power function for curved V, kappa controls curvature (low kappa for smooth curve, high for sharp V)
+            z_norm = 1 - z_norm / np.max(z_norm + 1e-10)  # Normalize and invert for V up
             control_points[i, j, 2] = height * z_norm
     
     # For periodic in u: duplicate first degree rows
