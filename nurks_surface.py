@@ -27,7 +27,6 @@ import warnings
 from matplotlib import MatplotlibDeprecationWarning
 import struct
 import base64
-from kappawise import kappa_coord
 # Import mpld3 if available for HTML export
 try:
     import mpld3
@@ -35,9 +34,7 @@ try:
 except ImportError:
     print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
-except ImportError:
-    print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
-    MPLD3_AVAILABLE = False
+# Assuming kappawise.py exists with compute_kappa_grid function; if not, define a placeholder
 try:
     from kappawise import compute_kappa_grid
 except ImportError:
@@ -1095,7 +1092,7 @@ def compute_curvature(x, y, t):
     denominator = np.where(denominator == 0, 1e-10, denominator)
     return numerator / denominator
 # Generate base pod curve (closed for boundary surface, now 3D curve)
-def generate_pod_curve_closed(num_points=200, phase=0.0):  # Increased num_points for better resolution
+def generate_pod_curve_closed(num_points=200, phase=0.0): # Increased num_points for better resolution
     t = np.linspace(0, 2 * np.pi, num_points) # Full closed loop
     r = radial_chord + tangential_chord * np.cos(6 * t + phase) # Flower-like top profile
     x = r * np.cos(t)
@@ -1452,7 +1449,6 @@ def on_motion_protractor(event):
                 f'Baseline Chord (x=1): {baseline_chord_2:.4f}')
     cursor_text.set_text(text_str)
     fig_2d.canvas.draw()
-
 # Toggle harmonics
 def toggle_harmonics(event):
     global show_harmonics
@@ -1462,7 +1458,6 @@ def toggle_harmonics(event):
             text.set_visible(show_harmonics)
         print(f"Harmonic frequencies {'shown' if show_harmonics else 'hidden'}")
         fig_2d.canvas.draw()
-
 # Save plot
 def save_plot(event):
     if event.key == 'w':
@@ -1473,7 +1468,6 @@ def save_plot(event):
             print("Interactive plot saved as nu_curve.html")
         else:
             print("Skipping HTML export because mpld3 is not installed.")
-
 # Connect events
 fig_2d.canvas.mpl_connect('pick_event', on_pick_mersenne)
 fig_2d.canvas.mpl_connect('button_press_event', on_click_deselect)
