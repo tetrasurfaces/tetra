@@ -35,7 +35,7 @@ def bspline_basis(u, i, p, knots):
     term2 = ((knots[i + p + 1] - u) / den2 * bspline_basis(u, i + 1, p - 1, knots)) if den2 > 0 else 0.0
     return term1 + term2
 
-def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.8, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=2.0, inflection=0.5, inner_radius=0.01, degree=3, res=50):
+def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.8, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=2.0, inflection=0.5, radial_bend=0.0, inner_radius=0.01, degree=3, res=50):
     """
     Compute the NURKS surface points for a 6-petal flower shape as a single surface body.
     
@@ -47,6 +47,7 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
     - kappa: Curvature modulation for Z.
     - height: Maximum height of the surface.
     - inflection: Controls the inflection point in the Z profile (0 to 1, where inflection occurs).
+    - radial_bend: Bend factor for curving radial lines.
     - inner_radius: Small inner radius to avoid fan artefact.
     - degree: Spline degree.
     - res: Resolution for u and v.
@@ -70,19 +71,20 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
     c = nw_se_diameter / 2
     
     theta = np.linspace(0, 2 * np.pi, num_u, endpoint=False) + twist
-    r_base = radii + amplitude * np.sin(num_petals * theta)
-    x_base = r_base * np.cos(theta) * (a + c) / 2
-    y_base = r_base * np.sin(theta) * (b + a) / 2
     
     for i in range(num_u):
         for j in range(num_v):
             v = j / (num_v - 1) if num_v > 1 else 0
-            scale = inner_radius + (1 - inner_radius) * (1 - v)  # Linear blend to small inner radius
-            control_points[i, j, 0] = scale * x_base[i]
-            control_points[i, j, 1] = scale * y_base[i]
+            theta_v = theta[i] + radial_bend * np.sin(np.pi * v)  # Sin for V-like bend in radial
+            r_v = radii + amplitude * np.sin(num_petals * theta_v)
+            x_v = r_v * np.cos(theta_v) * (a + c) / 2
+            y_v = r_v * np.sin(theta_v) * (b + a) / 2
+            scale = inner_radius + (1 - inner_radius) * (1 - v)
+            control_points[i, j, 0] = scale * x_v
+            control_points[i, j, 1] = scale * y_v
             # Curved V-angulation radial profile: point down with curved arms
             dist = abs(v - inflection)
-            z_norm = (dist ** kappa)  # Power function for curved V, kappa controls curvature (low kappa for smooth curve, high for sharp V)
+            z_norm = (dist ** kappa)  # Power function for curved V, kappa controls curvature
             z_norm = 1 - z_norm / np.max(z_norm + 1e-10)  # Normalize and invert for V up
             control_points[i, j, 2] = height * z_norm
     
@@ -164,15 +166,16 @@ ax = fig.add_subplot(111, projection='3d')
 plt.subplots_adjust(left=0.25, bottom=0.25)
 
 # Slider axes
-ax_ns = plt.axes([0.25, 0.22, 0.65, 0.03])
-ax_nw = plt.axes([0.25, 0.17, 0.65, 0.03])
-ax_ne = plt.axes([0.25, 0.12, 0.65, 0.03])
-ax_twist = plt.axes([0.25, 0.07, 0.65, 0.03])
-ax_amp = plt.axes([0.25, 0.02, 0.65, 0.03])
+ax_ns = plt.axes([0.25, 0.32, 0.65, 0.03])
+ax_nw = plt.axes([0.25, 0.27, 0.65, 0.03])
+ax_ne = plt.axes([0.25, 0.22, 0.65, 0.03])
+ax_twist = plt.axes([0.25, 0.17, 0.65, 0.03])
+ax_amp = plt.axes([0.25, 0.12, 0.65, 0.03])
 ax_radii = plt.axes([0.05, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
 ax_kappa = plt.axes([0.10, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
 ax_height = plt.axes([0.15, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
 ax_inflection = plt.axes([0.20, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
+ax_bend = plt.axes([0.25, 0.07, 0.65, 0.03])
 
 # Initial values
 init_ns = 2.0
@@ -184,6 +187,7 @@ init_radii = 1.0
 init_kappa = 1.0
 init_height = 2.0
 init_inflection = 0.5
+init_bend = 0.5
 
 # Sliders
 s_ns = Slider(ax_ns, 'NS Diam', 0.5, 3.0, valinit=init_ns)
@@ -195,6 +199,7 @@ s_radii = Slider(ax_radii, 'Radii', 0.1, 2.0, valinit=init_radii, orientation='v
 s_kappa = Slider(ax_kappa, 'Kappa', 0.5, 1.5, valinit=init_kappa, orientation='vertical')
 s_height = Slider(ax_height, 'Height', 0.5, 3.0, valinit=init_height, orientation='vertical')
 s_inflection = Slider(ax_inflection, 'Inflection', 0.0, 1.0, valinit=init_inflection, orientation='vertical')
+s_bend = Slider(ax_bend, 'Radial Bend', 0.0, np.pi, valinit=init_bend)
 
 def update(val):
     ns = s_ns.val
@@ -206,8 +211,9 @@ def update(val):
     kappa = s_kappa.val
     height = s_height.val
     inflection = s_inflection.val
+    radial_bend = s_bend.val
     
-    vertices, faces, face_colors, control_x, control_y, control_z, res = compute_nurks_surface(ns, nw, ne, twist, amp, radii, kappa, height, inflection)
+    vertices, faces, face_colors, control_x, control_y, control_z, res = compute_nurks_surface(ns, nw, ne, twist, amp, radii, kappa, height, inflection, radial_bend)
     
     ax.clear()
     ax.add_collection3d(Poly3DCollection(vertices[faces], facecolors=face_colors, edgecolor='none', alpha=0.8))
@@ -250,6 +256,7 @@ s_radii.on_changed(update)
 s_kappa.on_changed(update)
 s_height.on_changed(update)
 s_inflection.on_changed(update)
+s_bend.on_changed(update)
 
 # Initial update
 update(None)
