@@ -41,6 +41,7 @@ except ImportError:
     def compute_kappa_grid(grid_size):
         # Placeholder: return a dummy 3D array
         return np.random.rand(grid_size, grid_size, 360) # Example shape
+from id_util_nurks_surface import custom_interoperations_green_curve
 # Set precision for Decimal
 getcontext().prec = 28
 # Suppress warnings
