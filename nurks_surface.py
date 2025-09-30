@@ -34,6 +34,7 @@ try:
 except ImportError:
     print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
+# Assuming kappawise.py exists with compute_kappa_grid function; if not, define a placeholder
 try:
     from kappawise import compute_kappa_grid
 except ImportError:
@@ -445,115 +446,6 @@ def compute_golden_spiral():
     x *= scale_factor
     y *= scale_factor
     return x, y
-
-def bspline_basis(u, i, p, knots):
-    if p == 0:
-        if i < 0 or i + 1 >= len(knots):
-            return 0.0
-        return 1.0 if knots[i] <= u <= knots[i + 1] else 0.0
-    
-    if i < 0 or i >= len(knots) - 1:
-        return 0.0
-    term1 = 0.0
-    if i + p < len(knots):
-        den1 = knots[i + p] - knots[i]
-        if den1 > 0:
-            term1 = ((u - knots[i]) / den1) * bspline_basis(u, i, p - 1, knots)
-    term2 = 0.0
-    if i + p + 1 < len(knots):
-        den2 = knots[i + p + 1] - knots[i + 1]
-        if den2 > 0:
-            term2 = ((knots[i + p + 1] - u) / den2) * bspline_basis(u, i + 1, p - 1, knots)
-    
-    return term1 + term2
-
-def bspline_basis_periodic(u, i, p, knots, n):
-    i = i % n
-    if p == 0:
-        k0 = knots[i % len(knots)]
-        k1 = knots[(i + 1) % len(knots)]
-        if k0 > k1:  # Wrap-around interval
-            return 1.0 if u >= k0 or u < k1 else 0.0
-        else:
-            return 1.0 if k0 <= u < k1 else 0.0
-    k_i = knots[i % len(knots)]
-    k_ip = knots[(i + p) % len(knots)]
-    den1 = k_ip - k_i
-    if den1 < 0:
-        den1 += 1.0  # Adjust for wrap-around
-    term1 = 0.0
-    if den1 > 0:
-        term1 = ((u - k_i) / den1) * bspline_basis_periodic(u, i, p - 1, knots, n)
-    k_i1 = knots[(i + 1) % len(knots)]
-    k_ip1 = knots[(i + p + 1) % len(knots)]
-    den2 = k_ip1 - k_i1
-    if den2 < 0:
-        den2 += 1.0  # Adjust for wrap-around
-    term2 = 0.0
-    if den2 > 0:
-        term2 = ((k_ip1 - u) / den2) * bspline_basis_periodic(u, i + 1, p - 1, knots, n)
-    return term1 + term2
-# Custom interoperations for greencurve using NURBS with local kappa adjustment for closure
-def custom_interoperations_green_curve(points, kappas, is_closed=False):
-    """
-    Custom Non-Uniform Rational Kappa Spline (NURKS) approximation for green curve with closure adjustments.
-    For closed curves, extends control points on both sides and shifts knot vector for smooth periodicity.
-    """
-    points = np.array(points)
-    kappas = np.array(kappas)
-    degree = 3 # Fixed degree for continuity
-    num_output_points = 1000
-  
-    if is_closed and len(points) > degree:
-        n = len(points)
-        extended_points = np.concatenate((points[n-degree:], points, points[0:degree]))
-        extended_kappas = np.concatenate((kappas[n-degree:], kappas, kappas[0:degree]))
-        len_extended = len(extended_points)
-        knots = np.linspace(-degree / float(n), 1 + degree / float(n), len_extended + 1)
-  
-        u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
-  
-        smooth_x = np.zeros(num_output_points)
-        smooth_y = np.zeros(num_output_points)
-  
-        for j, u in enumerate(u_fine):
-            num_x, num_y, den = 0.0, 0.0, 0.0
-            for i in range(len_extended):
-                b = bspline_basis(u, i, degree, knots)
-                w = extended_kappas[i] * b
-                num_x += w * extended_points[i, 0]
-                num_y += w * extended_points[i, 1]
-                den += w
-            if den > 0:
-                smooth_x[j] = num_x / den
-                smooth_y[j] = num_y / den
-  
-        smooth_x = np.append(smooth_x, smooth_x[0])
-        smooth_y = np.append(smooth_y, smooth_y[0])
-  
-    else:
-        # Cumsum of distances for open
-        t = np.cumsum([0] + [np.linalg.norm(points[i+1] - points[i]) for i in range(len(points)-1)])
-        knots = np.concatenate(([0] * (degree + 1), t / t[-1] if t[-1] > 0 else np.linspace(0, 1, len(t)), [1] * (degree)))
-  
-        u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
-  
-        smooth_x = np.zeros(num_output_points)
-        smooth_y = np.zeros(num_output_points)
-  
-        for j, u in enumerate(u_fine):
-            num_x, num_y, den = 0.0, 0.0, 0.0
-            for i in range(len(points)):
-                b = bspline_basis(u, i, degree, knots)
-                w = kappas[i] * b if i < len(kappas) else kappas[-1] * b
-                num_x += w * points[i, 0]
-                num_y += w * points[i, 1]
-                den += w
-            if den > 0:
-                smooth_x[j] = num_x / den
-                smooth_y[j] = num_y / den
-  
-    return smooth_x, smooth_y
 # Compute kappa for a segment, second endpoint influences next kappa
 def compute_segment_kappa(p1, p2, base_kappa=1.0, prev_kappa=1.0):
     x1, y1 = p1
