@@ -34,7 +34,6 @@ try:
 except ImportError:
     print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
-# Assuming kappawise.py exists with compute_kappa_grid function; if not, define a placeholder
 try:
     from kappawise import compute_kappa_grid
 except ImportError:
