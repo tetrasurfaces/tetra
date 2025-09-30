@@ -46,13 +46,27 @@ def custom_interoperations_green_curve(points, kappas, is_closed=False):
     kappas = np.array(kappas)
     degree = 3
     num_output_points = 1000
-    
-    if is_closed:
+   
+    if is_closed and len(points) > degree:
         n = len(points)
-        extended_points = np.concatenate((points[n-degree:], points, points[0:degree]))
-        extended_kappas = np.concatenate((kappas[n-degree:], kappas, kappas[0:degree]))
+        # Compute chordal parameterization
+        t = [0.0]
+        for i in range(n):
+            j = (i + 1) % n
+            dx = points[j, 0] - points[i, 0]
+            dy = points[j, 1] - points[i, 1]
+            t.append(t[-1] + np.sqrt(dx**2 + dy**2))
+        t = np.array(t)
+        t = t / t[-1]  # Normalize
+        
+        # Extend knots for periodicity
+        knots_left = t[-degree:] - 1
+        knots_right = t[:degree] + 1
+        knots = np.concatenate((knots_left, t[:-1], knots_right))  # t[:-1] because t has n+1, but for n points
+        
+        extended_points = np.concatenate((points[-degree:], points, points[:degree]))
+        extended_kappas = np.concatenate((kappas[-degree:], kappas, kappas[:degree]))
         len_extended = len(extended_points)
-        knots = np.linspace(-degree / float(n), 1 + degree / float(n), len_extended + 1)
         
         u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
         
@@ -73,7 +87,29 @@ def custom_interoperations_green_curve(points, kappas, is_closed=False):
         
         smooth_x = np.append(smooth_x, smooth_x[0])
         smooth_y = np.append(smooth_y, smooth_y[0])
-    
+   
+    else:
+        # Original open case
+        t = np.cumsum([0] + [np.linalg.norm(points[i+1] - points[i]) for i in range(len(points)-1)])
+        knots = np.concatenate(([0] * (degree + 1), t / t[-1] if t[-1] > 0 else np.linspace(0, 1, len(t)), [1] * (degree)))
+   
+        u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
+   
+        smooth_x = np.zeros(num_output_points)
+        smooth_y = np.zeros(num_output_points)
+   
+        for j, u in enumerate(u_fine):
+            num_x, num_y, den = 0.0, 0.0, 0.0
+            for i in range(len(points)):
+                b = bspline_basis(u, i, degree, knots)
+                w = kappas[i] * b if i < len(kappas) else kappas[-1] * b
+                num_x += w * points[i, 0]
+                num_y += w * points[i, 1]
+                den += w
+            if den > 0:
+                smooth_x[j] = num_x / den
+                smooth_y[j] = num_y / den
+   
     return smooth_x, smooth_y
 
 # Test with flower shape
@@ -99,7 +135,7 @@ plt.plot(smooth_x, smooth_y, 'b-')
 plt.plot(x_base_coarse, y_base_coarse, 'r--')
 plt.scatter(x_base_coarse, y_base_coarse, color='red')
 plt.axis('equal')
-plt.title('Smoothed Closed Curve')
+plt.title('Smoothed Closed Curve with chordal knots')
 plt.show()
 
 # Output some points to check
