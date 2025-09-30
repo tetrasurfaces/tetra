@@ -36,7 +36,7 @@ except ImportError:
     print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
 
-compute_kappa_gird==kappa_coor(grid_size, grid_size, 360) # Example shape
+compute_kappa_gird==kappa_coord(grid_size, grid_size, 360) # Example shape
 # Set precision for Decimal
 getcontext().prec = 28
 # Suppress warnings
