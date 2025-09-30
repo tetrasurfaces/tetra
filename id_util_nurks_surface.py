@@ -48,86 +48,53 @@ def bspline_basis(u, i, p, knots):
     
     return term1 + term2
 
-def bspline_basis_periodic(u, i, p, knots, n):
-    """
-    Periodic version of the B-spline basis function for closed curves.
-    Wraps indices and adjusts denominators for periodicity.
-    """
-    i = i % n
-    if p == 0:
-        k0 = knots[i % len(knots)]
-        k1 = knots[(i + 1) % len(knots)]
-        if k0 > k1:  # Wrap-around interval
-            return 1.0 if u >= k0 or u < k1 else 0.0
-        else:
-            return 1.0 if k0 <= u < k1 else 0.0
-    
-    k_i = knots[i % len(knots)]
-    k_ip = knots[(i + p) % len(knots)]
-    den1 = k_ip - k_i
-    if den1 < 0:
-        den1 += 1.0  # Adjust for wrap-around
-    term1 = 0.0
-    if den1 > 0:
-        term1 = ((u - k_i) / den1) * bspline_basis_periodic(u, i, p - 1, knots, n)
-    
-    k_i1 = knots[(i + 1) % len(knots)]
-    k_ip1 = knots[(i + p + 1) % len(knots)]
-    den2 = k_ip1 - k_i1
-    if den2 < 0:
-        den2 += 1.0  # Adjust for wrap-around
-    term2 = 0.0
-    if den2 > 0:
-        term2 = ((k_ip1 - u) / den2) * bspline_basis_periodic(u, i + 1, p - 1, knots, n)
-    
-    return term1 + term2
-
 def custom_interoperations_green_curve(points, kappas, is_closed=False):
     """
     Custom Non-Uniform Rational Kappa Spline (NURKS) approximation for green curve with closure adjustments.
-    Uses periodic B-spline basis for closed curves to ensure smooth closure without external libraries.
+    For closed curves, extends control points on both sides and shifts knot vector for smooth periodicity.
     """
     points = np.array(points)
     kappas = np.array(kappas)
     degree = 3  # Fixed degree for continuity
     num_output_points = 1000
-    
-    if is_closed:
+   
+    if is_closed and len(points) > degree:
         n = len(points)
-        knots = np.linspace(0, 1, n + 1)
+        extended_points = np.concatenate((points[n-degree:], points, points[0:degree]))
+        extended_kappas = np.concatenate((kappas[n-degree:], kappas, kappas[0:degree]))
+        len_extended = len(extended_points)
+        knots = np.linspace(-degree / float(n), 1 + degree / float(n), len_extended + 1)
+   
         u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
-        
+   
         smooth_x = np.zeros(num_output_points)
         smooth_y = np.zeros(num_output_points)
-        
+   
         for j, u in enumerate(u_fine):
             num_x, num_y, den = 0.0, 0.0, 0.0
-            for i in range(n):
-                b = bspline_basis_periodic(u, i, degree, knots, n)
-                w = kappas[i] * b
-                num_x += w * points[i, 0]
-                num_y += w * points[i, 1]
+            for i in range(len_extended):
+                b = bspline_basis(u, i, degree, knots)
+                w = extended_kappas[i] * b
+                num_x += w * extended_points[i, 0]
+                num_y += w * extended_points[i, 1]
                 den += w
             if den > 0:
                 smooth_x[j] = num_x / den
                 smooth_y[j] = num_y / den
-        
+   
         smooth_x = np.append(smooth_x, smooth_x[0])
         smooth_y = np.append(smooth_y, smooth_y[0])
+   
     else:
-        # Non-closed case using standard B-spline
-        if len(points) > degree:
-            points = np.concatenate((points, points[0:degree]))
-            kappas = np.concatenate((kappas, kappas[0:degree]))
-        
+        # Cumsum of distances for open
         t = np.cumsum([0] + [np.linalg.norm(points[i+1] - points[i]) for i in range(len(points)-1)])
         knots = np.concatenate(([0] * (degree + 1), t / t[-1] if t[-1] > 0 else np.linspace(0, 1, len(t)), [1] * (degree)))
-        
+   
         u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
-        
+   
         smooth_x = np.zeros(num_output_points)
         smooth_y = np.zeros(num_output_points)
-        
+   
         for j, u in enumerate(u_fine):
             num_x, num_y, den = 0.0, 0.0, 0.0
             for i in range(len(points)):
@@ -139,7 +106,7 @@ def custom_interoperations_green_curve(points, kappas, is_closed=False):
             if den > 0:
                 smooth_x[j] = num_x / den
                 smooth_y[j] = num_y / den
-    
+   
     return smooth_x, smooth_y
 
 def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.8, twist=0.0, amplitude=0.3, inner_amp=0.3, radii=1.0, kappa=1.0, height=2.0, inflection=0.5, radial_bend=0.0, inner_radius=0.01, degree=3, res=50):
@@ -168,7 +135,7 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
     - res: Resolution used.
     """
     num_petals = 6
-    num_u = num_petals * 2  # 12 control points in angular direction
+    num_u = num_petals * 6  # Increased to 36 for better flower profile resolution
     num_v = degree + 1  # Radial control layers
    
     control_points = np.zeros((num_u, num_v, 3))
@@ -178,9 +145,11 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
     b = ne_sw_diameter / 2
     c = nw_se_diameter / 2
    
-    theta = np.linspace(0, 2 * np.pi, num_u, endpoint=False) + twist
+    # Use higher sampling for coarse parametric to preserve flower shape in smoothing
+    num_coarse = num_petals * 10  # 60 points for dense parametric sampling
+    theta = np.linspace(0, 2 * np.pi, num_coarse, endpoint=False) + twist
    
-    # Generate coarse boundary points
+    # Generate coarse boundary points with higher resolution
     r_base = radii + amplitude * np.sin(num_petals * theta)
     x_base_coarse = r_base * np.cos(theta) * (a + c) / 2
     y_base_coarse = r_base * np.sin(theta) * (b + a) / 2
@@ -190,10 +159,13 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
     boundary_kappas = [1.0] * len(boundary_points)
     smooth_x, smooth_y = custom_interoperations_green_curve(boundary_points, boundary_kappas, is_closed=True)
    
-    # Resample smooth boundary to num_u for control, avoiding duplicate last point for distinct controls
-    idx = np.linspace(0, len(smooth_x) - 2, num_u, dtype=int)
+    # Resample smooth boundary to num_u for control
+    idx = np.linspace(0, len(smooth_x) - 1, num_u, dtype=int)
     x_base = smooth_x[idx]
     y_base = smooth_y[idx]
+   
+    # Adjust theta for the resampled control points (for inner calculations)
+    theta = np.linspace(0, 2 * np.pi, num_u, endpoint=False) + twist
    
     # Precompute max for Z normalization across all radial layers
     raw_z = np.zeros(num_v)
@@ -367,7 +339,7 @@ def update(val):
     ax.scatter(control_x, control_y, control_z, color='red', s=50)
    
     # Control net lines (u and v directions)
-    num_u = 12
+    num_u = 36  # Updated
     num_v = 4
     for j in range(num_v):
         cx = control_x[j::num_v]
