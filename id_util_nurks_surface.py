@@ -35,14 +35,15 @@ def bspline_basis(u, i, p, knots):
     term2 = ((knots[i + p + 1] - u) / den2 * bspline_basis(u, i + 1, p - 1, knots)) if den2 > 0 else 0.0
     return term1 + term2
 
-def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.8, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=2.0, inflection=0.5, radial_bend=0.0, inner_radius=0.01, degree=3, res=50):
+def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.8, twist=0.0, amplitude=0.3, inner_amp=0.3, radii=1.0, kappa=1.0, height=2.0, inflection=0.5, radial_bend=0.0, inner_radius=0.01, degree=3, res=50):
     """
     Compute the NURKS surface points for a 6-petal flower shape as a single surface body.
     
     Parameters:
     - ns_diameter, nw_se_diameter, ne_sw_diameter: Diameters for elliptical deformation of the boundary profile.
     - twist: Twist angle for petals.
-    - amplitude: Amplitude of petal undulations (positive or negative for inflection).
+    - amplitude: Amplitude of petal undulations for outer (positive or negative for inflection).
+    - inner_amp: Amplitude for inner (centre) flower profile.
     - radii: Base radius for the boundary profile.
     - kappa: Curvature modulation for Z.
     - height: Maximum height of the surface.
@@ -76,7 +77,8 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
         for j in range(num_v):
             v = j / (num_v - 1) if num_v > 1 else 0
             theta_v = theta[i] + radial_bend * np.sin(np.pi * v)  # Sin for V-like bend in radial
-            r_v = radii + amplitude * np.sin(num_petals * theta_v)
+            amp_v = amplitude * (1 - v) + inner_amp * v  # Blend outer to inner amplitude
+            r_v = radii + amp_v * np.sin(num_petals * theta_v)
             x_v = r_v * np.cos(theta_v) * (a + c) / 2
             y_v = r_v * np.sin(theta_v) * (b + a) / 2
             scale = inner_radius + (1 - inner_radius) * (1 - v)
@@ -171,11 +173,12 @@ ax_nw = plt.axes([0.25, 0.27, 0.65, 0.03])
 ax_ne = plt.axes([0.25, 0.22, 0.65, 0.03])
 ax_twist = plt.axes([0.25, 0.17, 0.65, 0.03])
 ax_amp = plt.axes([0.25, 0.12, 0.65, 0.03])
+ax_inner_amp = plt.axes([0.25, 0.07, 0.65, 0.03])
 ax_radii = plt.axes([0.05, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
 ax_kappa = plt.axes([0.10, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
 ax_height = plt.axes([0.15, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
 ax_inflection = plt.axes([0.20, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
-ax_bend = plt.axes([0.25, 0.07, 0.65, 0.03])
+ax_bend = plt.axes([0.25, 0.02, 0.65, 0.03])
 
 # Initial values
 init_ns = 2.0
@@ -183,6 +186,7 @@ init_nw = 1.5
 init_ne = 1.8
 init_twist = 0.2
 init_amp = 0.3
+init_inner_amp = 0.3
 init_radii = 1.0
 init_kappa = 1.0
 init_height = 2.0
@@ -195,6 +199,7 @@ s_nw = Slider(ax_nw, 'NW/SE Diam', 0.5, 3.0, valinit=init_nw)
 s_ne = Slider(ax_ne, 'NE/SW Diam', 0.5, 3.0, valinit=init_ne)
 s_twist = Slider(ax_twist, 'Twist', 0.0, np.pi, valinit=init_twist)
 s_amp = Slider(ax_amp, 'Amplitude', -0.5, 0.5, valinit=init_amp)
+s_inner_amp = Slider(ax_inner_amp, 'Inner Amp', -0.5, 0.5, valinit=init_inner_amp)
 s_radii = Slider(ax_radii, 'Radii', 0.1, 2.0, valinit=init_radii, orientation='vertical')
 s_kappa = Slider(ax_kappa, 'Kappa', 0.5, 1.5, valinit=init_kappa, orientation='vertical')
 s_height = Slider(ax_height, 'Height', 0.5, 3.0, valinit=init_height, orientation='vertical')
@@ -207,13 +212,14 @@ def update(val):
     ne = s_ne.val
     twist = s_twist.val
     amp = s_amp.val
+    inner_amp = s_inner_amp.val
     radii = s_radii.val
     kappa = s_kappa.val
     height = s_height.val
     inflection = s_inflection.val
     radial_bend = s_bend.val
     
-    vertices, faces, face_colors, control_x, control_y, control_z, res = compute_nurks_surface(ns, nw, ne, twist, amp, radii, kappa, height, inflection, radial_bend)
+    vertices, faces, face_colors, control_x, control_y, control_z, res = compute_nurks_surface(ns, nw, ne, twist, amp, inner_amp, radii, kappa, height, inflection, radial_bend)
     
     ax.clear()
     ax.add_collection3d(Poly3DCollection(vertices[faces], facecolors=face_colors, edgecolor='none', alpha=0.8))
@@ -252,6 +258,7 @@ s_nw.on_changed(update)
 s_ne.on_changed(update)
 s_twist.on_changed(update)
 s_amp.on_changed(update)
+s_inner_amp.on_changed(update)
 s_radii.on_changed(update)
 s_kappa.on_changed(update)
 s_height.on_changed(update)
