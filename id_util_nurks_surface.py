@@ -17,475 +17,118 @@
 # express written permission from Todd Hutchinson.
 import numpy as np
 import matplotlib.pyplot as plt
-from mpl_toolkits.mplot3d import Axes3D
-from mpl_toolkits.mplot3d.art3d import Poly3DCollection
-from matplotlib import cm
-from matplotlib.widgets import Slider
-import hashlib
-from decimal import Decimal, getcontext
-import warnings
-from matplotlib import MatplotlibDeprecationWarning
-import struct
-import base64
-# Import mpld3 if available for HTML export
-try:
-    import mpld3
-    MPLD3_AVAILABLE = True
-except ImportError:
-    print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
-    MPLD3_AVAILABLE = False
-# Assuming kappawise.py exists with compute_kappa_grid function; if not, define a placeholder
-try:
-    from kappawise import compute_kappa_grid
-except ImportError:
-    def compute_kappa_grid(grid_size):
-        # Placeholder: return a dummy 3D array
-        return np.random.rand(grid_size, grid_size, 360) # Example shape
-# Set precision for Decimal
-getcontext().prec = 28
-# Suppress warnings
-warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
-# A3 landscape dimensions (normalized: width long side, height short side)
-WIDTH = 420 / 297 # A3 landscape: 420mm width, 297mm height, normalized height=1.0
-HEIGHT = 1.0
-PURPLE_LINES = [1/3, 2/3] # Dividers on the width
-unit_per_mm = 1.0 / 297 # Normalize to A3 short side
-scale_label = f"Scale: 1mm = {unit_per_mm:.5f} units (A3 short side = 297mm)"
-# Dreyfuss human factors: Optimal eye distance ~20 inches (508mm)
-EYE_DISTANCE = 500 * unit_per_mm # Normalized eye distance to viewport
-HORIZON_HEIGHT = HEIGHT * 0.5 # Default horizon line at half height
-EYE_LINE = HORIZON_HEIGHT # Eye line coincides with horizon
-# Golden spiral parameters
-PHI = (1 + np.sqrt(5)) / 2
-kappa = 1 / PHI
-A_SPIRAL = 0.001 # Scaled down slightly from 0.01 to fit better
-B_SPIRAL = np.log(PHI) / (np.pi / 2)
-# Define κθπ for the green segment
-theta_max = kappa * np.pi**2 / PHI
-# Compute the full spiral
-theta_full = np.linspace(0, 10 * np.pi, 1000)
-r_full = A_SPIRAL * np.exp(B_SPIRAL * theta_full)
-x_full = r_full * np.cos(theta_full)
-y_full = r_full * np.sin(theta_full)
-# Compute the green segment (θ from π to 2π)
-theta_green = np.linspace(np.pi, 2 * np.pi, 200)
-r_green = A_SPIRAL * np.exp(B_SPIRAL * theta_green)
-x_green = r_green * np.cos(theta_green)
-y_green = r_green * np.sin(theta_green)
-# Compute the chord and shift
-x1, y1 = x_green[0], y_green[0]
-x2, y2 = x_green[-1], y_green[-1]
-chord_length = np.abs(x2 - x1)
-# Shift so the segment starts at x=0
-x_green_shifted = x_green - x1
-x_green_final = x_green_shifted
-# Scale to match the target chord length (between purple lines)
-target_chord = PURPLE_LINES[1] - PURPLE_LINES[0]
-scale_factor = target_chord / chord_length if chord_length != 0 else 1.0
-x_green_scaled = x_green_final * scale_factor
-y_green_scaled = y_green * scale_factor
-# Shift to start at the first purple line
-x_green_final = x_green_scaled + PURPLE_LINES[0]
-# Compute κ at 2πR for the green segment
-r_max = A_SPIRAL * np.exp(B_SPIRAL * theta_max)
-two_pi_r = 2 * np.pi * r_max
-kappa_at_2piR = two_pi_r / PHI
-# Define the 52 Mersenne prime exponents (updated with the latest known as of 2025)
-mersenne_exponents = [
-    2, 3, 5, 7, 13, 17, 19, 31, 61, 89, 107, 127, 521, 607, 1279, 2203, 2281,
-    3217, 4253, 4423, 9689, 9941, 11213, 19937, 21701, 23209, 44497, 86243,
-    110503, 132049, 216091, 756839, 859433, 1257787, 1398269, 2976221, 3021377,
-    6972593, 13466917, 20996011, 24036583, 25964951, 30402457, 32582657,
-    37156667, 42643801, 43112609, 57885161, 74207281, 77232917, 82589933,
-    136279841 # Latest known Mersenne prime exponent as of 2025 (52nd)
-]
-# Map exponents to x-positions (0 to width)
-min_exponent = 2
-max_exponent_at_x1 = 1_100_000_000
-exponent_range_per_x = (max_exponent_at_x1 - min_exponent) / 1.0
-x_positions = [(exponent - min_exponent) / exponent_range_per_x * WIDTH for exponent in mersenne_exponents] # Scale to full WIDTH
-# Create the 52 curves data
-curves = []
-curve_lines = []
-colors = plt.cm.viridis(np.linspace(0, 1, len(mersenne_exponents)))
-for i, (exponent, x_pos) in enumerate(zip(mersenne_exponents, x_positions)):
-    scale = x_pos / chord_length if chord_length != 0 else 1.0
-    x_new = x_green * scale
-    y_new = y_green * scale
-    x_new_shifted = x_new - x_new[0]
-    curves.append((x_new_shifted, y_new, f"M{exponent}"))
-    curve_lines.append(None)
-# A4 short edge divisions (110 parts, scaled to first part of WIDTH)
-division_step = WIDTH / 2 / 110 # Assume first half is A4-like
-division_positions = np.arange(0, WIDTH / 2 + division_step, division_step)
-# Scale key for the title
-scale_key_positions = division_positions[::10] / (WIDTH / 2) # Normalize to 0-1 for first half
-scale_key_exponents = [int(2 + (1_100_000_000 - 2) * x) for x in scale_key_positions]
-scale_key_text = "Scale (x=0 to WIDTH/2): " + ", ".join([f"{x:.2f}: {exp:,}" for x, exp in zip(scale_key_positions, scale_key_exponents)])
-# Flags for Mersenne primes
-flag_length = 0.5
-start_y = -0.1
-wedge_angles = np.linspace(90, 360, len(curves))
-flag_positions = []
-annotation_objects = []
-harmonic_frequencies = []
-circle_markers = []
-min_exp = min(mersenne_exponents)
-max_exp = max(mersenne_exponents)
-log_min = np.log(min_exp)
-log_max = np.log(max_exp)
-min_freq_exp = -4.459
-max_freq_exp = 5.506
-exponent_range = max_freq_exp - min_freq_exp
-log_range = log_max - log_min
-for i, (x_new, y_new, label) in enumerate(curves):
-    x_end = x_new[-1]
-    y_end = y_new[-1]
-    x_start = x_end
-    y_start = start_y
-    angle = np.deg2rad(wedge_angles[i])
-    x_flag = x_start + flag_length * np.cos(angle)
-    y_flag = y_start + flag_length * np.sin(angle)
-    exponent = mersenne_exponents[i]
-    scaled_exponent = min_freq_exp + (np.log(exponent) - log_min) / log_range * exponent_range
-    freq = 440 * 2**scaled_exponent
-    harmonic_frequencies.append(freq)
-    flag_positions.append((x_end, y_end, x_start, y_start, x_flag, y_flag, label, freq))
-    angle_deg = wedge_angles[i]
-    if (angle_deg - 90) % 5 == 0:
-        angle_rad = np.deg2rad(angle_deg)
-        x_marker = x_start + (flag_length * 0.5) * np.cos(angle_rad)
-        y_marker = y_start + (flag_length * 0.5) * np.sin(angle_rad)
-        circle_markers.append((x_marker, y_marker))
-# Global variables for interactive modes
-protractor_active = False
-ruler_active = False
-draw_mode = False
-dimension_active = False
-pro_mode = False
-is_closed = False
-selected_curve = None
-hidden_elements = []
-protractor_points = []
-protractor_line = None
-protractor_text = None
-ruler_points = []
-ruler_line = None
-ruler_text = None
-dimension_labels = []
-drawing_points = [] # Kappa nodes (first endpoint of each greenchord)
-kappas = [] # Kappa values at each node
-node_scatter = [] # List of scatter objects for kappa nodes
-original_colors = [] # List to store original colors of nodes
-selected_node_index = -1
-dragging = False
-ghost_handles = [] # List for theta ghost handles
-green_curve_line = None # Single plot object for the interoperated greencurve
-CLOSE_THRESHOLD = 0.05 # Distance to first point to consider closing
-SNAP_THRESHOLD = 0.05 # Threshold for snapping to dividers (UX improvement)
-vanishing_points = [] # Vanishing points for each triangulation
-previous_kappa = 1.0 # Initial kappa for decay
-curvature = 1.0 # Initial curvature (kappa)
-height = 0.5 # Initial height for 3D model
-num_rings = 20 # Number of loft rings
-fractal_level = 3 # Fractal level for flowers
-radial_chord = 0.5 # Radial chord for flower
-tangential_chord = 0.2 # Tangential chord for flower
-height_chord = 0.1 # Height chord for flower
-current_vertices = None
-current_faces = None
-last_angle = 0.0 # Last measured angle from protractor
-show_harmonics = False
-harmonic_texts = []
-annotation_objects = []
-# Pre-compute kappa grid
-kappa_grid = compute_kappa_grid(grid_size=100)
-# Fractal Flower Mesh
-def fractal_flower(center, scale, level, all_polygons, rotation_angle=0.0):
-    """
-    Recursively generates flower-shaped polygons for the surface.
-    Collects all base-level flower polygons in all_polygons (list of list of [x,y,z]).
-    Uses 36 points for better flower resolution with curved petals.
-    Applies rotation to the points.
-    Args:
-        center: [x, y, z] center of the flower.
-        scale: Scale factor for the flower size.
-        level: Current recursion depth.
-        all_polygons: List to collect all base flower polygons.
-        rotation_angle: Rotation angle in radians for the flower.
-    """
-    rot_cos = np.cos(rotation_angle)
-    rot_sin = np.sin(rotation_angle)
-    num_points = 37 # 36 points for higher resolution
-    t = np.linspace(0, 2 * np.pi, num_points)[:-1]
-    r = scale * (radial_chord + tangential_chord * np.sin(6 * t)) # 6 petals, use sin for symmetry if needed
-    dx = r * np.cos(t)
-    dy = r * np.sin(t)
-    dz = scale * height_chord * np.cos(6 * t) # Curved z for surface
-    # Apply rotation to dx, dy (around z)
-    x_rot = center[0] + dx * rot_cos - dy * rot_sin
-    y_rot = center[1] + dx * rot_sin + dy * rot_cos
-    z_rot = center[2] + dz
-    polygon = [[x_rot[j], y_rot[j], z_rot[j]] for j in range(len(t))]
-    all_polygons.append(polygon)
-    if level == 0:
-        return
-    # Add smaller flowers at petal tips
-    small_scale = scale / PHI # Golden ratio scale
-    for i in range(6):
-        theta = i * (2 * np.pi / 6)
-        tip_r = scale * (radial_chord + tangential_chord) # Max r for tip
-        tip_dx = tip_r * np.cos(theta)
-        tip_dy = tip_r * np.sin(theta)
-        tip_dz = scale * height_chord
-        # Rotate tip offset
-        tip_x = center[0] + tip_dx * rot_cos - tip_dy * rot_sin
-        tip_y = center[1] + tip_dx * rot_sin + tip_dy * rot_cos
-        tip_z = center[2] + tip_dz
-        tip_center = [tip_x, tip_y, tip_z]
-        fractal_flower(tip_center, small_scale, level - 1, all_polygons, rotation_angle + np.pi)
-# Triangulate polygon for rendering (fan triangulation)
-def triangulate_poly(poly):
-    tris = []
-    for i in range(1, len(poly) - 1):
-        tris.append([poly[0], poly[i], poly[i+1]])
-    return tris
-# Hash entropy for lower surface
-def hash_entropy(p):
-    h_str = f"{p[0]:.6f}{p[1]:.6f}{p[2]:.6f}"
-    h = int(hashlib.sha256(h_str.encode()).hexdigest(), 16) % 1000 / 1000.0 * 0.05 - 0.025
-    return h
-# Build mesh using fractal flower (ties to curve by scaling to curve length)
-def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_points=None, fractal_level=3):
-    """
-    Builds two surfaces meeting at the 3D curve with vertical tangent, inheriting each other's curvature in transition.
-    Integrates fractal flower for complex surface detail on caps, scaled by curve length.
-    Uses flower modulation in loft rings for interlacing petals.
-    Args:
-        x_curve, y_curve, z_curve: Curve coordinates.
-        height: Height for lofting.
-        num_rings: Number of rings for loft.
-        num_points: Number of points to sample curve.
-        fractal_level: Recursion level for fractal flower.
-    Returns:
-        vertices (np.array): Array of [x, y, z].
-        faces (list): List of [idx1, idx2, idx3].
-    """
-    if num_points is not None:
-        indices = np.linspace(0, len(x_curve) - 1, num_points, dtype=int)
-        x_curve = x_curve[indices]
-        y_curve = y_curve[indices]
-        if z_curve is not None:
-            z_curve = z_curve[indices]
-    n = len(x_curve)
-    if z_curve is None:
-        z_curve = np.zeros(n) # Default to flat if no z provided
-    center_x = drawing_points[0][0] if drawing_points else np.mean(x_curve) # Datum at kappa node 1 if available
-    center_y = drawing_points[0][1] if drawing_points else np.mean(y_curve)
-    vertices = []
-    faces = []
-    # Parting line on 3D curve
-    parting_base = len(vertices)
-    for i in range(n):
-        vertices.append([x_curve[i], y_curve[i], z_curve[i]])
-    # Upper surface: rings inward with vertical tangent at edge and flower modulation
-    upper_bases = [parting_base]
-    for l in range(1, num_rings):
-        s = l / (num_rings - 1.0)
-        scale = 1 - s**2 # Vertical tangent at s=0 (dr/ds=0)
-        g_val = (height / 2) * s**2 # Quadratic for constant curvature
-        base = len(vertices)
-        upper_bases.append(base)
-        for i in range(n):
-            vec_x = x_curve[i] - center_x
-            vec_y = y_curve[i] - center_y
-            norm = np.sqrt(vec_x**2 + vec_y**2)
-            if norm > 0:
-                dir_x = vec_x / norm
-                dir_y = vec_y / norm
-            else:
-                dir_x = 1.0
-                dir_y = 0.0
-            theta = np.arctan2(vec_y, vec_x)
-            phase = 0.0 # Upper phase
-            flower_mod = tangential_chord * np.cos(6 * theta + phase) * s # Modulation increases inward
-            r = norm * scale * (radial_chord + flower_mod)
-            x = center_x + r * dir_x
-            y = center_y + r * dir_y
-            z = z_curve[i] * (1 - s) + g_val + height_chord * np.sin(6 * theta + phase)
-            vertices.append([x, y, z])
-    center_upper_idx = len(vertices)
-    vertices.append([center_x, center_y, height / 2])
-    # Lower surface: mirrored with phase offset for interlacing and entropy
-    lower_bases = [parting_base] # Shared edge
-    for l in range(1, num_rings):
-        s = l / (num_rings - 1.0)
-        scale = 1 - s**2
-        g_val = (height / 2) * s**2 # Quadratic for constant curvature (sign same for inheritance magnitude)
-        base = len(vertices)
-        lower_bases.append(base)
-        for i in range(n):
-            vec_x = x_curve[i] - center_x
-            vec_y = y_curve[i] - center_y
-            norm = np.sqrt(vec_x**2 + vec_y**2)
-            if norm > 0:
-                dir_x = vec_x / norm
-                dir_y = vec_y / norm
-            else:
-                dir_x = 1.0
-                dir_y = 0.0
-            theta = np.arctan2(vec_y, vec_x)
-            phase = np.pi / 6 # Lower phase offset for interlacing
-            flower_mod = tangential_chord * np.cos(6 * theta + phase) * s
-            r = norm * scale * (radial_chord + flower_mod)
-            x = center_x + r * dir_x
-            y = center_y + r * dir_y
-            z = z_curve[i] * (1 - s) - g_val + hash_entropy([x, y, z]) + height_chord * np.sin(6 * theta + phase)
-            vertices.append([x, y, z])
-    center_lower_idx = len(vertices)
-    vertices.append([center_x, center_y, -height / 2])
-    # Faces for upper surface
-    for ll in range(len(upper_bases) - 1):
-        base = upper_bases[ll]
-        next_base = upper_bases[ll + 1]
-        for i in range(n):
-            next_i = (i + 1) % n
-            faces.append([base + i, base + next_i, next_base + next_i])
-            faces.append([base + i, next_base + next_i, next_base + i])
-    # Faces for lower surface
-    for ll in range(len(lower_bases) - 1):
-        base = lower_bases[ll]
-        next_base = lower_bases[ll + 1]
-        for i in range(n):
-            next_i = (i + 1) % n
-            faces.append([base + i, next_base + i, next_base + next_i])
-            faces.append([base + i, next_base + next_i, base + next_i])
-    # Integrate fractal flower for caps (no fan, use flower fractals)
-    # Compute curve length for scale
-    curve_length = np.sum(np.sqrt(np.diff(x_curve)**2 + np.diff(y_curve)**2))
-    flower_scale = curve_length * 0.1 if curve_length > 0 else 0.5 # Scale to curve
-    all_polygons = [] # List of list of [x,y,z] for each polygon
-    # Upper cap flower
-    fractal_flower(vertices[center_upper_idx], flower_scale, fractal_level, all_polygons, rotation_angle=np.pi)
-    # Lower cap flower
-    fractal_flower(vertices[center_lower_idx], flower_scale, fractal_level, all_polygons, rotation_angle=np.pi)
-    # Add polygons to mesh (triangulate for rendering)
-    for poly in all_polygons:
-        base_idx = len(vertices)
-        vertices.extend(poly)
-        for tri in triangulate_poly(range(len(poly))):
-            faces.append([base_idx + tri[0], base_idx + tri[1], base_idx + tri[2]])
-    # Convert to numpy array
-    vertices = np.array(vertices)
-    # Snap to integers if hash ends with 0
-    for i in range(len(vertices)):
-        v = vertices[i]
-        h_str = f"{v[0]:.6f}{v[1]:.6f}{v[2]:.4f}"
-        h = hashlib.sha256(h_str.encode()).hexdigest()[-1]
-        if h == '0':
-            vertices[i] = np.round(vertices[i])
-    # Add compound curvature modulation with angle and 3D kappa grid for smooth orthographic projections
-    grid_size, _, num_angles = kappa_grid.shape
-    angle_idx = int((last_angle / 360) * num_angles) % num_angles
-    kappa_slice = kappa_grid[:, :, angle_idx]
-    # Normalize vertices to -1 to 1 for grid mapping (assuming curve bounds approx [0, WIDTH] x [0, HEIGHT])
-    max_dim = max(np.max(np.abs(vertices[:, 0])), np.max(np.abs(vertices[:, 1])))
-    norm_x = np.clip(((vertices[:, 0] / max_dim) + 1) / 2 * (grid_size - 1), 0, grid_size - 1).astype(int)
-    norm_y = np.clip(((vertices[:, 1] / max_dim) + 1) / 2 * (grid_size - 1), 0, grid_size - 1).astype(int)
-    kappa_mod = kappa_slice[norm_y, norm_x]
-    vertices[:, 2] += kappa_mod * 0.1 # Scale z modulation
-    vertices[:, 0] += kappa_mod * 0.05 * np.sin(2 * np.pi * vertices[:, 2] / height) # Compound in x
-    vertices[:, 1] += kappa_mod * 0.05 * np.cos(2 * np.pi * vertices[:, 2] / height) # Compound in y
-    # Make flowers sacrificial: remove flower faces after modulation (assume last added are flowers)
-    flower_face_start = len(faces) - len(all_polygons) * 35 # Adjusted for 36 points per flower (approx 35 triangles)
-    faces = faces[:flower_face_start]
-    return vertices, faces
-# NURBS basis function
-def nurbs_basis(u, i, p, knots):
+def bspline_basis(u, i, p, knots):
     if p == 0:
-        return 1.0 if knots[i] <= u <= knots[i+1] else 0.0 # Include = for end
-    if knots[i+p] == knots[i]:
-        c1 = 0.0
-    else:
-        c1 = (u - knots[i]) / (knots[i+p] - knots[i]) * nurbs_basis(u, i, p-1, knots)
-    if knots[i+p+1] == knots[i+1]:
-        c2 = 0.0
-    else:
-        c2 = (knots[i+p+1] - u) / (knots[i+p+1] - knots[i+1]) * nurbs_basis(u, i+1, p-1, knots)
-    return c1 + c2
-# Compute NURBS curve point
-def nurbs_curve_point(u, control_points, weights, p, knots):
-    n = len(control_points) - 1
-    x = 0.0
-    y = 0.0
-    denom = 0.0
-    for i in range(n + 1):
-        b = nurbs_basis(u, i, p, knots)
-        denom += b * weights[i]
-        x += b * weights[i] * control_points[i][0]
-        y += b * weights[i] * control_points[i][1]
-    if denom == 0:
-        return 0, 0
-    return x / denom, y / denom
-# Generate NURBS curve
-def generate_nurbs_curve(points, weights, p, knots, num_points=1000):
-    u_min, u_max = knots[p], knots[-p-1]
-    u_values = np.linspace(u_min, u_max, num_points, endpoint=False)
-    curve = [nurbs_curve_point(u, points, weights, p, knots) for u in u_values]
-    curve.append(curve[0]) # Append first point for exact closure
-    return np.array([list(pt) for pt in curve]) # Convert to np.array of shape (num_points+1, 2)
-# Compute golden spiral
-def compute_golden_spiral():
-    theta = np.linspace(0, 10 * np.pi, 1000)
-    r = A_SPIRAL * np.exp(B_SPIRAL * theta)
-    x = r * np.cos(theta)
-    y = r * np.sin(theta)
-    # Scale down to fit within page bounds
-    scale_factor = min(WIDTH, HEIGHT) / (2 * np.max(np.abs([x, y]))) * 0.8 # 80% of max to fit comfortably
-    x *= scale_factor
-    y *= scale_factor
-    return x, y
+        if i < 0 or i + 1 >= len(knots):
+            return 0.0
+        return 1.0 if knots[i] <= u <= knots[i + 1] else 0.0
+   
+    if i < 0 or i >= len(knots) - 1:
+        return 0.0
+   
+    term1 = 0.0
+    if i + p < len(knots):
+        den1 = knots[i + p] - knots[i]
+        if den1 > 0:
+            term1 = ((u - knots[i]) / den1) * bspline_basis(u, i, p - 1, knots)
+   
+    term2 = 0.0
+    if i + p + 1 < len(knots):
+        den2 = knots[i + p + 1] - knots[i + 1]
+        if den2 > 0:
+            term2 = ((knots[i + p + 1] - u) / den2) * bspline_basis(u, i + 1, p - 1, knots)
+   
+    return term1 + term2
+def bspline_basis_periodic(u, i, p, knots, n):
+    i = i % n
+    if p == 0:
+        k0 = knots[i % len(knots)]
+        k1 = knots[(i + 1) % len(knots)]
+        if k0 > k1: # Wrap-around interval
+            return 1.0 if u >= k0 or u < k1 else 0.0
+        else:
+            return 1.0 if k0 <= u < k1 else 0.0
+   
+    k_i = knots[i % len(knots)]
+    k_ip = knots[(i + p) % len(knots)]
+    den1 = k_ip - k_i
+    if den1 < 0:
+        den1 += 1.0 # Adjust for wrap-around
+    term1 = 0.0
+    if den1 > 0:
+        term1 = ((u - k_i) / den1) * bspline_basis_periodic(u, i, p - 1, knots, n)
+   
+    k_i1 = knots[(i + 1) % len(knots)]
+    k_ip1 = knots[(i + p + 1) % len(knots)]
+    den2 = k_ip1 - k_i1
+    if den2 < 0:
+        den2 += 1.0 # Adjust for wrap-around
+    term2 = 0.0
+    if den2 > 0:
+        term2 = ((k_ip1 - u) / den2) * bspline_basis_periodic(u, i + 1, p - 1, knots, n)
+   
+    return term1 + term2
 # Custom interoperations for greencurve using NURBS with local kappa adjustment for closure
 def custom_interoperations_green_curve(points, kappas, is_closed=False):
     """
-    Custom NURBS curve with endpoint kappa and theta decay, using NURBS for ellipse-like conditions on closure.
-    For closed curves, appends points for periodic wrapping to achieve higher continuity at closure.
+    Custom Non-Uniform Rational Kappa Spline (NURKS) approximation for green curve with closure adjustments.
+    For closed curves, extends control points on both sides and shifts knot vector for smooth periodicity.
     """
-    if len(points) < 2:
-        return np.array([]), np.array([])
-    # Dynamically adjust degree for few points to ensure anchoring (line for 2 points)
-    degree = min(5, len(points) - 1)
-    if is_closed:
-        points = points + points[1:degree + 1]
-        kappas = kappas + kappas[1:degree + 1]
-    x_points = [p[0] for p in points]
-    y_points = [p[1] for p in points]
-    t = np.cumsum([0] + [np.sqrt((x_points[i+1] - x_points[i])**2 + (y_points[i+1] - y_points[i])**2) for i in range(len(points)-1)])
-    t_fine = np.linspace(0, t[-1], 1000) if t[-1] > 0 else np.linspace(0, 1, 1000)
-    # Generate knots based on theta (distance), non-uniform for decay, adjusted for higher degree
-    knots = [0] * (degree + 1) + list(np.cumsum([kappas[i] for i in range(len(points))])) + [t[-1]] * (degree + 1) # Clamped knots for endpoint interpolation
-    x_fine = []
-    y_fine = []
-    for u in t_fine:
-        x_val = 0.0
-        y_val = 0.0
-        n = len(points) - 1
-        for i in range(n + 1):
-            b = nurbs_basis(u, i, degree, knots) # Higher degree basis
-            weight = kappas[i] if i < len(kappas) else kappas[-1] # Weight by kappa
-            x_val += b * x_points[i] * weight
-            y_val += b * y_points[i] * weight
-        # Theta decay adjustment
-        decay = np.exp(-u / t[-1] / 20.0) if t[-1] > 0 else 1.0
-        x_val *= decay
-        y_val *= decay
-        x_fine.append(x_val)
-        y_fine.append(y_val)
-    x = np.array(x_fine)
-    y = np.array(y_fine)
-    # Inter-sum operations: after computing y, adjust x based on y (as per request)
-    x += 0.05 * y # Example inter-sum: x changed based on y for coupled modulation
-    return x, y
+    points = np.array(points)
+    kappas = np.array(kappas)
+    degree = 3 # Fixed degree for continuity
+    num_output_points = 1000
+   
+    if is_closed and len(points) > degree:
+        n = len(points)
+        extended_points = np.concatenate((points[n-degree:], points, points[0:degree]))
+        extended_kappas = np.concatenate((kappas[n-degree:], kappas, kappas[0:degree]))
+        len_extended = len(extended_points)
+        knots = np.linspace(-degree / float(n), 1 + degree / float(n), len_extended + 1)
+   
+        u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
+   
+        smooth_x = np.zeros(num_output_points)
+        smooth_y = np.zeros(num_output_points)
+   
+        for j, u in enumerate(u_fine):
+            num_x, num_y, den = 0.0, 0.0, 0.0
+            for i in range(len_extended):
+                b = bspline_basis(u, i, degree, knots)
+                w = extended_kappas[i] * b
+                num_x += w * extended_points[i, 0]
+                num_y += w * extended_points[i, 1]
+                den += w
+            if den > 0:
+                smooth_x[j] = num_x / den
+                smooth_y[j] = num_y / den
+   
+        smooth_x = np.append(smooth_x, smooth_x[0])
+        smooth_y = np.append(smooth_y, smooth_y[0])
+   
+    else:
+        # Cumulative sum of distances for open
+        t = np.cumsum([0] + [np.linalg.norm(points[i+1] - points[i]) for i in range(len(points)-1)])
+        knots = np.concatenate(([0] * (degree + 1), t / t[-1] if t[-1] > 0 else np.linspace(0, 1, len(t)), [1] * (degree)))
+   
+        u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
+   
+        smooth_x = np.zeros(num_output_points)
+        smooth_y = np.zeros(num_output_points)
+   
+        for j, u in enumerate(u_fine):
+            num_x, num_y, den = 0.0, 0.0, 0.0
+            for i in range(len(points)):
+                b = bspline_basis(u, i, degree, knots)
+                w = kappas[i] * b if i < len(kappas) else kappas[-1] * b
+                num_x += w * points[i, 0]
+                num_y += w * points[i, 1]
+                den += w
+            if den > 0:
+                smooth_x[j] = num_x / den
+                smooth_y[j] = num_y / den
+   
+    return smooth_x, smooth_y
 # Compute kappa for a segment, second endpoint influences next kappa
 def compute_segment_kappa(p1, p2, base_kappa=1.0, prev_kappa=1.0):
     x1, y1 = p1
@@ -887,7 +530,7 @@ def on_click_draw(event):
                     kappas.append(kappas[0]) # Last kappa inherits first kappa's theta (via same value)
                     recalculate_kappas() # Recalculate for closure consistency
                     is_closed = True
-                    redraw_green_curve(is_closed=True) # Use closed NURBS for ellipse conditions
+                    redraw_green_curve(is_closed=True) # Use closed NURKS for ellipse conditions
                     # Get closed curve
                     x_curve, y_curve = green_curve_line.get_data()
                     if np.hypot(x_curve[-1] - x_curve[0], y_curve[-1] - y_curve[0]) > 1e-5:
@@ -972,7 +615,7 @@ def auto_close(event):
         kappas.append(kappas[0]) # Last kappa inherits first kappa's theta (via same value)
         recalculate_kappas() # Recalculate for closure consistency
         is_closed = True
-        redraw_green_curve(is_closed=True) # Use closed NURBS for ellipse conditions
+        redraw_green_curve(is_closed=True) # Use closed NURKS for ellipse conditions
         # Get closed curve
         x_curve, y_curve = green_curve_line.get_data()
         if np.hypot(x_curve[-1] - x_curve[0], y_curve[-1] - y_curve[0]) > 1e-5:
@@ -1071,7 +714,7 @@ def compute_curvature(x, y, t):
     denominator = np.where(denominator == 0, 1e-10, denominator)
     return numerator / denominator
 # Generate base pod curve (closed for boundary surface, now 3D curve)
-def generate_pod_curve_closed(num_points=200, phase=0.0):  # Increased num_points for better resolution
+def generate_pod_curve_closed(num_points=200, phase=0.0): # Increased num_points for better resolution
     t = np.linspace(0, 2 * np.pi, num_points) # Full closed loop
     r = radial_chord + tangential_chord * np.cos(6 * t + phase) # Flower-like top profile
     x = r * np.cos(t)
@@ -1138,7 +781,7 @@ def draw_default_pod(ax, color='g'):
     y_control += HEIGHT / 2
     points = list(zip(x_control, y_control))
     kappas_pod = [1.0] * len(points)
-    x_interp, y_interp = custom_interoperations_green_curve(points, kappas_pod)
+    x_interp, y_interp = custom_interoperations_green_curve(points, kappas_pod, is_closed=True)
     ax.plot(x_interp, y_interp, color=color, linewidth=3, linestyle='-')
     # Compute and print speeds for default curve
     print("Default Curve Speeds:")
