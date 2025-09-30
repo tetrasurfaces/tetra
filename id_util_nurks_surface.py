@@ -19,6 +19,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+from mpl_toolkits.mplot3d.art3d import Poly3DCollection
 from matplotlib.widgets import Slider
 from matplotlib import cm
 
@@ -34,7 +35,7 @@ def bspline_basis(u, i, p, knots):
     term2 = ((knots[i + p + 1] - u) / den2 * bspline_basis(u, i + 1, p - 1, knots)) if den2 > 0 else 0.0
     return term1 + term2
 
-def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.8, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=2.0, inflection=0.5, degree=3, res=50):
+def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.8, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=2.0, inflection=0.5, inner_radius=0.01, degree=3, res=50):
     """
     Compute the NURKS surface points for a 6-petal flower shape as a single surface body.
     
@@ -46,12 +47,16 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
     - kappa: Curvature modulation for Z.
     - height: Maximum height of the surface.
     - inflection: Controls the inflection point in the Z profile (0 to 1, where inflection occurs).
+    - inner_radius: Small inner radius to avoid fan artefact.
     - degree: Spline degree.
     - res: Resolution for u and v.
     
     Returns:
-    - X, Y, Z: Meshgrid arrays for the surface.
+    - vertices: 3D points (Nx3).
+    - faces: Triangular faces (Mx3).
+    - face_colors: Colors for faces.
     - control_x, control_y, control_z: Flattened control points for plotting.
+    - res: Resolution used.
     """
     num_petals = 6
     num_u = num_petals * 2  # 12 control points in angular direction
@@ -64,33 +69,37 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
     b = ne_sw_diameter / 2
     c = nw_se_diameter / 2
     
+    theta = np.linspace(0, 2 * np.pi, num_u, endpoint=False) + twist
+    r_base = radii + amplitude * np.sin(num_petals * theta)
+    x_base = r_base * np.cos(theta) * (a + c) / 2
+    y_base = r_base * np.sin(theta) * (b + a) / 2
+    
     for i in range(num_u):
-        theta = (i / num_u * 2 * np.pi) + twist
-        r_base = radii + amplitude * np.sin(num_petals * theta)
-        x_base = r_base * np.cos(theta) * (a + c) / 2
-        y_base = r_base * np.sin(theta) * (b + a) / 2
         for j in range(num_v):
             v = j / (num_v - 1) if num_v > 1 else 0
-            scale = 1 - v  # Reverse scale: v=0 at boundary (flower profile), v=1 at center
-            control_points[i, j, 0] = scale * x_base
-            control_points[i, j, 1] = scale * y_base
-            # Adjusted Z for inflection: sigmoid-like curve for better control over shape
-            z_norm = 1 / (1 + np.exp(-kappa * (v - inflection) * 10))  # Steep transition at inflection point
+            scale = inner_radius + (1 - inner_radius) * (1 - v)  # Linear blend to small inner radius
+            control_points[i, j, 0] = scale * x_base[i]
+            control_points[i, j, 1] = scale * y_base[i]
+            # V-like radial profile: peak at inflection, curved arms
+            dist = abs(v - inflection)
+            z_norm = 1 - (dist / (0.5 + 1e-6)) ** kappa  # Normalized V, kappa controls curvature sharpness
+            z_norm = max(z_norm, 0)  # Clamp to non-negative
             control_points[i, j, 2] = height * z_norm
     
     # For periodic in u: duplicate first degree rows
     control_points_u = np.concatenate((control_points, control_points[:degree, :, :]), axis=0)
     weights_u = np.concatenate((weights, weights[:degree, :]), axis=0)
     
-    # Knot vectors (clamped)
+    # Clamped knot vector for periodic u
     n_u = len(control_points_u) - 1
     knots_u = np.concatenate(([0] * (degree + 1), np.linspace(0, 1, n_u - degree + 2), [1] * (degree)))
     
+    # Clamped for v
     n_v = num_v - 1
     knots_v = np.concatenate(([0] * (degree + 1), np.linspace(0, 1, n_v - degree + 2), [1] * (degree)))
     
-    # Evaluate surface
-    u_vals = np.linspace(0, 1, res)
+    # Evaluate surface points
+    u_vals = np.linspace(0, 1, res, endpoint=False)
     v_vals = np.linspace(0, 1, res)
     U, V = np.meshgrid(u_vals, v_vals)
     
@@ -119,12 +128,35 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
                 Y[ii, jj] = numer_y / denom
                 Z[ii, jj] = numer_z / denom
     
+    # Flatten to vertices
+    vertices = np.column_stack((X.ravel(), Y.ravel(), Z.ravel()))
+    
+    # Create Delaunay-like triangular faces by splitting grid quads
+    faces = []
+    for i in range(res - 1):
+        for j in range(res):
+            base = i * res + j
+            next_base = (i + 1) * res + j
+            j1 = (j + 1) % res
+            base1 = i * res + j1
+            next_base1 = (i + 1) * res + j1
+            faces.append([base, base1, next_base])
+            faces.append([base1, next_base1, next_base])
+    faces = np.array(faces)
+    
+    # Face colors based on average Z
+    face_colors = []
+    for f in faces:
+        avg_z = np.mean(vertices[f, 2])
+        norm = avg_z / height if height > 0 else 0
+        face_colors.append(cm.viridis(norm))
+    
     # Control points for plotting (original, without duplication)
     control_x = control_points[:, :, 0].flatten()
     control_y = control_points[:, :, 1].flatten()
     control_z = control_points[:, :, 2].flatten()
     
-    return X, Y, Z, control_x, control_y, control_z
+    return vertices, faces, face_colors, control_x, control_y, control_z, res
 
 # Interactive visualization
 fig = plt.figure(figsize=(10, 8))
@@ -175,11 +207,11 @@ def update(val):
     height = s_height.val
     inflection = s_inflection.val
     
-    X, Y, Z, control_x, control_y, control_z = compute_nurks_surface(ns, nw, ne, twist, amp, radii, kappa, height, inflection)
+    vertices, faces, face_colors, control_x, control_y, control_z, res = compute_nurks_surface(ns, nw, ne, twist, amp, radii, kappa, height, inflection)
     
     ax.clear()
-    ax.plot_surface(X, Y, Z, cmap='viridis')
-    ax.plot_wireframe(X, Y, Z, color='black', linewidth=0.5)
+    ax.add_collection3d(Poly3DCollection(vertices[faces], facecolors=face_colors, edgecolor='none', alpha=0.8))
+    ax.plot_wireframe(vertices[:,0].reshape(res, res), vertices[:,1].reshape(res, res), vertices[:,2].reshape(res, res), color='black', linewidth=0.5)
     
     # Show control points
     ax.scatter(control_x, control_y, control_z, color='red', s=50)
@@ -202,7 +234,7 @@ def update(val):
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
-    limits = max(np.max(np.abs(X)), np.max(np.abs(Y)), np.max(Z)) * 1.1
+    limits = max(np.max(np.abs(vertices[:,0])), np.max(np.abs(vertices[:,1])), np.max(vertices[:,2])) * 1.1
     ax.set_xlim(-limits, limits)
     ax.set_ylim(-limits, limits)
     ax.set_zlim(0, limits * 2)
