@@ -36,11 +36,7 @@ except ImportError:
     MPLD3_AVAILABLE = False
 # Assuming kappawise.py exists with compute_kappa_grid function; if not, define a placeholder
 try:
-    from kappawise import compute_kappa_grid
-except ImportError:
-    def compute_kappa_grid(grid_size):
-        # Placeholder: return a dummy 3D array
-        return np.random.rand(grid_size, grid_size, 360) # Example shape
+    from kappawise import kappa_coord
 from id_util_nurks_surface import custom_interoperations_green_curve
 # Set precision for Decimal
 getcontext().prec = 28
