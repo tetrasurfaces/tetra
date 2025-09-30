@@ -35,8 +35,15 @@ try:
 except ImportError:
     print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
-
-compute_kappa_gird==kappa_coord(grid_size, grid_size, 360) # Example shape
+except ImportError:
+    print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
+    MPLD3_AVAILABLE = False
+try:
+    from kappawise import compute_kappa_grid
+except ImportError:
+    def compute_kappa_grid(grid_size):
+        # Placeholder: return a dummy 3D array
+        return np.random.rand(grid_size, grid_size, 360) # Example shape
 # Set precision for Decimal
 getcontext().prec = 28
 # Suppress warnings
