@@ -28,12 +28,57 @@ def bspline_basis(u, i, p, knots):
     Recursive B-spline basis function.
     """
     if p == 0:
-        return 1.0 if knots[i] <= u < knots[i + 1] else 0.0
+        return 1.0 if knots[i] <= u <= knots[i + 1] else 0.0
     den1 = knots[i + p] - knots[i]
     den2 = knots[i + p + 1] - knots[i + 1]
     term1 = ((u - knots[i]) / den1 * bspline_basis(u, i, p - 1, knots)) if den1 > 0 else 0.0
     term2 = ((knots[i + p + 1] - u) / den2 * bspline_basis(u, i + 1, p - 1, knots)) if den2 > 0 else 0.0
     return term1 + term2
+
+def custom_interoperations_green_curve(points, kappas, is_closed=False):
+    """
+    Custom Non-Uniform Rational Kappa Spline (NURKS) approximation for green curve with closure adjustments.
+    """
+    points = np.array(points)
+    kappas = np.array(kappas)
+    degree = 3  # Fixed degree for continuity
+    num_output_points = 1000
+    
+    if is_closed and len(points) > degree:
+        points = np.concatenate((points, points[0:degree]))
+        kappas = np.concatenate((kappas, kappas[0:degree]))
+    
+    n = len(points) - 1
+    # Uniform knot vector for constant spacing in closed loops
+    if is_closed:
+        knots = np.linspace(0, 1, len(points) + 1)
+    else:
+        # Cumsum of distances for open
+        t = np.cumsum([0] + [np.linalg.norm(points[i+1] - points[i]) for i in range(len(points)-1)])
+        knots = np.concatenate(([0] * (degree + 1), t / t[-1] if t[-1] > 0 else np.linspace(0, 1, len(t)), [1] * (degree)))
+    
+    u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
+    
+    smooth_x = np.zeros(num_output_points)
+    smooth_y = np.zeros(num_output_points)
+    
+    for j, u in enumerate(u_fine):
+        num_x, num_y, den = 0.0, 0.0, 0.0
+        for i in range(len(points)):
+            b = bspline_basis(u, i, degree, knots)
+            w = kappas[i] * b if i < len(kappas) else kappas[-1] * b
+            num_x += w * points[i, 0]
+            num_y += w * points[i, 1]
+            den += w
+        if den > 0:
+            smooth_x[j] = num_x / den
+            smooth_y[j] = num_y / den
+    
+    if is_closed:
+        smooth_x = np.append(smooth_x, smooth_x[0])
+        smooth_y = np.append(smooth_y, smooth_y[0])
+    
+    return smooth_x, smooth_y
 
 def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.8, twist=0.0, amplitude=0.3, inner_amp=0.3, radii=1.0, kappa=1.0, height=2.0, inflection=0.5, radial_bend=0.0, inner_radius=0.01, degree=3, res=50):
     """
@@ -61,8 +106,8 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
     - res: Resolution used.
     """
     num_petals = 6
-    num_u = num_petals * 2  # 12 control points in angular direction
-    num_v = degree + 1  # Radial control layers
+    num_u = num_petals * 2 # 12 control points in angular direction
+    num_v = degree + 1 # Radial control layers
     
     control_points = np.zeros((num_u, num_v, 3))
     weights = np.ones((num_u, num_v))
@@ -73,11 +118,26 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
     
     theta = np.linspace(0, 2 * np.pi, num_u, endpoint=False) + twist
     
+    # Generate coarse boundary points
+    r_base = radii + amplitude * np.sin(num_petals * theta)
+    x_base = r_base * np.cos(theta) * (a + c) / 2
+    y_base = r_base * np.sin(theta) * (b + a) / 2
+    
+    # Use custom green curve to smooth the boundary profile with closure
+    boundary_points = list(zip(x_base, y_base))
+    boundary_kappas = [1.0] * len(boundary_points)
+    smooth_x, smooth_y = custom_interoperations_green_curve(boundary_points, boundary_kappas, is_closed=True)
+    
+    # Resample smooth boundary to num_u for control (since smooth has 1001)
+    idx = np.linspace(0, len(smooth_x) - 1, num_u, dtype=int)
+    x_base = smooth_x[idx]
+    y_base = smooth_y[idx]
+    
     for i in range(num_u):
         for j in range(num_v):
             v = j / (num_v - 1) if num_v > 1 else 0
-            theta_v = theta[i] + radial_bend * np.sin(np.pi * v)  # Sin for V-like bend in radial
-            amp_v = amplitude * (1 - v) + inner_amp * v  # Blend outer to inner amplitude
+            theta_v = theta[i] + radial_bend * np.sin(np.pi * v) # Sin for V-like bend in radial
+            amp_v = amplitude * (1 - v) + inner_amp * v # Blend outer to inner amplitude
             r_v = radii + amp_v * np.sin(num_petals * theta_v)
             x_v = r_v * np.cos(theta_v) * (a + c) / 2
             y_v = r_v * np.sin(theta_v) * (b + a) / 2
@@ -86,31 +146,31 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
             control_points[i, j, 1] = scale * y_v
             # Curved V-angulation radial profile: point down with curved arms
             dist = abs(v - inflection)
-            z_norm = (dist ** kappa)  # Power function for curved V, kappa controls curvature
-            z_norm = 1 - z_norm / np.max(z_norm + 1e-10)  # Normalize and invert for V up
+            z_norm = (dist ** kappa) # Power function for curved V, kappa controls curvature
+            z_norm = 1 - z_norm / np.max(z_norm + 1e-10) # Normalize and invert for V up
             control_points[i, j, 2] = height * z_norm
-    
+   
     # For periodic in u: duplicate first degree rows
     control_points_u = np.concatenate((control_points, control_points[:degree, :, :]), axis=0)
     weights_u = np.concatenate((weights, weights[:degree, :]), axis=0)
-    
+   
     # Clamped knot vector for periodic u
     n_u = len(control_points_u) - 1
     knots_u = np.concatenate(([0] * (degree + 1), np.linspace(0, 1, n_u - degree + 2), [1] * (degree)))
-    
+   
     # Clamped for v
     n_v = num_v - 1
     knots_v = np.concatenate(([0] * (degree + 1), np.linspace(0, 1, n_v - degree + 2), [1] * (degree)))
-    
+   
     # Evaluate surface points
     u_vals = np.linspace(0, 1, res, endpoint=False)
     v_vals = np.linspace(0, 1, res)
     U, V = np.meshgrid(u_vals, v_vals)
-    
+   
     X = np.zeros((res, res))
     Y = np.zeros((res, res))
     Z = np.zeros((res, res))
-    
+   
     for ii in range(res):
         for jj in range(res):
             u = u_vals[ii]
@@ -131,10 +191,15 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
                 X[ii, jj] = numer_x / denom
                 Y[ii, jj] = numer_y / denom
                 Z[ii, jj] = numer_z / denom
-    
+   
+    # Make seamless by setting last to first for periodic
+    X[:, -1] = X[:, 0]
+    Y[:, -1] = Y[:, 0]
+    Z[:, -1] = Z[:, 0]
+   
     # Flatten to vertices
     vertices = np.column_stack((X.ravel(), Y.ravel(), Z.ravel()))
-    
+   
     # Create Delaunay-like triangular faces by splitting grid quads
     faces = []
     for i in range(res - 1):
@@ -147,26 +212,24 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
             faces.append([base, base1, next_base])
             faces.append([base1, next_base1, next_base])
     faces = np.array(faces)
-    
+   
     # Face colors based on average Z
     face_colors = []
     for f in faces:
         avg_z = np.mean(vertices[f, 2])
         norm = avg_z / height if height > 0 else 0
         face_colors.append(cm.viridis(norm))
-    
+   
     # Control points for plotting (original, without duplication)
     control_x = control_points[:, :, 0].flatten()
     control_y = control_points[:, :, 1].flatten()
     control_z = control_points[:, :, 2].flatten()
-    
+   
     return vertices, faces, face_colors, control_x, control_y, control_z, res
-
 # Interactive visualization
 fig = plt.figure(figsize=(10, 8))
 ax = fig.add_subplot(111, projection='3d')
 plt.subplots_adjust(left=0.25, bottom=0.25)
-
 # Slider axes
 ax_ns = plt.axes([0.25, 0.32, 0.65, 0.03])
 ax_nw = plt.axes([0.25, 0.27, 0.65, 0.03])
@@ -179,7 +242,6 @@ ax_kappa = plt.axes([0.10, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow'
 ax_height = plt.axes([0.15, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
 ax_inflection = plt.axes([0.20, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
 ax_bend = plt.axes([0.25, 0.02, 0.65, 0.03])
-
 # Initial values
 init_ns = 2.0
 init_nw = 1.5
@@ -192,7 +254,6 @@ init_kappa = 1.0
 init_height = 2.0
 init_inflection = 0.5
 init_bend = 0.5
-
 # Sliders
 s_ns = Slider(ax_ns, 'NS Diam', 0.5, 3.0, valinit=init_ns)
 s_nw = Slider(ax_nw, 'NW/SE Diam', 0.5, 3.0, valinit=init_nw)
@@ -205,7 +266,6 @@ s_kappa = Slider(ax_kappa, 'Kappa', 0.5, 1.5, valinit=init_kappa, orientation='v
 s_height = Slider(ax_height, 'Height', 0.5, 3.0, valinit=init_height, orientation='vertical')
 s_inflection = Slider(ax_inflection, 'Inflection', 0.0, 1.0, valinit=init_inflection, orientation='vertical')
 s_bend = Slider(ax_bend, 'Radial Bend', 0.0, np.pi, valinit=init_bend)
-
 def update(val):
     ns = s_ns.val
     nw = s_nw.val
@@ -218,16 +278,16 @@ def update(val):
     height = s_height.val
     inflection = s_inflection.val
     radial_bend = s_bend.val
-    
+   
     vertices, faces, face_colors, control_x, control_y, control_z, res = compute_nurks_surface(ns, nw, ne, twist, amp, inner_amp, radii, kappa, height, inflection, radial_bend)
-    
+   
     ax.clear()
     ax.add_collection3d(Poly3DCollection(vertices[faces], facecolors=face_colors, edgecolor='none', alpha=0.8))
     ax.plot_wireframe(vertices[:,0].reshape(res, res), vertices[:,1].reshape(res, res), vertices[:,2].reshape(res, res), color='black', linewidth=0.5)
-    
+   
     # Show control points
     ax.scatter(control_x, control_y, control_z, color='red', s=50)
-    
+   
     # Control net lines (u and v directions)
     num_u = 12
     num_v = 4
@@ -241,7 +301,7 @@ def update(val):
         cy = control_y[i * num_v : (i + 1) * num_v]
         cz = control_z[i * num_v : (i + 1) * num_v]
         ax.plot(cx, cy, cz, 'k--')
-    
+   
     ax.set_title('6-Petal NURKS Single Surface with Flower Profile Boundary')
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
@@ -251,7 +311,6 @@ def update(val):
     ax.set_ylim(-limits, limits)
     ax.set_zlim(0, limits * 2)
     fig.canvas.draw_idle()
-
 # Attach updates
 s_ns.on_changed(update)
 s_nw.on_changed(update)
@@ -264,8 +323,6 @@ s_kappa.on_changed(update)
 s_height.on_changed(update)
 s_inflection.on_changed(update)
 s_bend.on_changed(update)
-
 # Initial update
 update(None)
-
 plt.show()
