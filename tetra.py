@@ -35,7 +35,7 @@ except ImportError:
     print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
 from temperature_salt import secure_hash_two
-from kappawise import kappa_coord, compute_kappa_grid
+from kappawise import kappa_coord
 from nurks_surface import bspline_basis, bspline_basis_periodic, custom_interoperations_green_curve
 # Set precision for Decimal
 getcontext().prec = 28
@@ -195,7 +195,7 @@ show_harmonics = False
 harmonic_texts = []
 annotation_objects = []
 # Pre-compute kappa grid
-kappa_grid = compute_kappa_grid(grid_size=100)
+kappa_grid = kappa_coord(grid_size=100)
 # Fractal Flower Mesh
 def fractal_flower(center, scale, level, all_polygons, rotation_angle=0.0):
     """
