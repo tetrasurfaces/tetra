@@ -27,6 +27,7 @@ import warnings
 from matplotlib import MatplotlibDeprecationWarning
 import struct
 import base64
+from kappawise import kappa_coord
 # Import mpld3 if available for HTML export
 try:
     import mpld3
@@ -34,13 +35,8 @@ try:
 except ImportError:
     print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
-# Assuming kappawise.py exists with compute_kappa_grid function; if not, define a placeholder
-try:
-    from kappawise import compute_kappa_grid
-except ImportError:
-    def compute_kappa_grid(grid_size):
-        # Placeholder: return a dummy 3D array
-        return np.random.rand(grid_size, grid_size, 360) # Example shape
+
+compute_kappa_gird==kappa_coor(grid_size, grid_size, 360) # Example shape
 # Set precision for Decimal
 getcontext().prec = 28
 # Suppress warnings
@@ -1403,4 +1399,110 @@ def on_motion_protractor(event):
     angle = np.arctan2(dy, dx) * 180 / np.pi
     # Update protractor arc
     mid_x = (anchor_x + x) / 2
-    mid_y = (anchor
+    mid_y = (anchor_y + y) / 2
+    radius_arc = np.sqrt(dx**2 + dy**2) / 4
+    start_angle = 0
+    end_angle = angle
+    theta_arc = np.linspace(np.deg2rad(start_angle), np.deg2rad(end_angle), num_points)
+    x_arc = mid_x + radius_arc * np.cos(theta_arc)
+    y_arc = mid_y + radius_arc * np.sin(theta_arc)
+    protractor_arc.set_data(x_arc, y_arc)
+    # Update swinging ghost curves
+    offsets = [-10, -5, 5, 10] # Degrees
+    for i, offset in enumerate(offsets):
+        angle_offset = angle + offset
+        x_ghost, y_ghost = compute_curve_points(np.pi, 2 * np.pi, num_points // 2, 1.0, angle_offset)
+        ghost_curves[i].set_data(anchor_x + x_ghost, anchor_y + y_ghost)
+    # Update protractor spiral at the mouse position
+    line_vec = np.array([x - anchor_x, y - anchor_y])
+    line_len = np.sqrt(dx**2 + dy**2)
+    if line_len == 0:
+        line_len = 1e-10
+    normal_vec = np.array([-(y - anchor_y), x - anchor_x]) / line_len
+    x_spiral, y_spiral = compute_curve_points(np.pi, 2 * np.pi, num_points, 1.0)
+    x_mirrored = []
+    y_mirrored = []
+    for xs, ys in zip(x_spiral, y_spiral):
+        point = np.array([xs, ys])
+        v = point - np.array([anchor_x, anchor_y])
+        projection = np.dot(v, normal_vec) * normal_vec
+        mirrored_point = point - 2 * projection
+        x_mirrored.append(mirrored_point[0])
+        y_mirrored.append(mirrored_point[1])
+    protractor_spiral_2.set_data(x + x_mirrored, y + y_mirrored)
+    # Update protractor text
+    protractor_text.set_position((mid_x, mid_y))
+    protractor_text.set_text(f'Angle: {angle:.2f}°\nκ at 2πR: {kappa_at_2piR:.4f}')
+    # Calculate chord length from cursor to the start of the green segment
+    x_start_green, y_start_green = x_green_final[0], y_green_scaled[0]
+    chord_to_green = np.sqrt((x - x_start_green)**2 + (y - y_start_green)**2)
+    # Update cursor text
+    text_str = (f'κ: {scale_factor:.4f}\n'
+                f'Height Factor: {height_factor:.4f}\n'
+                f'Cursor: ({x:.4f}, {y:.4f})\n'
+                f'Chord to Green: {chord_to_green:.4f}\n'
+                f'Baseline Chord (x=0): {baseline_chord:.4f}\n'
+                f'Baseline Chord (x=1): {baseline_chord_2:.4f}')
+    cursor_text.set_text(text_str)
+    fig_2d.canvas.draw()
+
+# Toggle harmonics
+def toggle_harmonics(event):
+    global show_harmonics
+    if event.key == 'h':
+        show_harmonics = not show_harmonics
+        for text in harmonic_texts:
+            text.set_visible(show_harmonics)
+        print(f"Harmonic frequencies {'shown' if show_harmonics else 'hidden'}")
+        fig_2d.canvas.draw()
+
+# Save plot
+def save_plot(event):
+    if event.key == 'w':
+        plt.savefig("nu_curve.png", dpi=300, bbox_inches='tight')
+        print("Plot saved as nu_curve.png")
+        if MPLD3_AVAILABLE:
+            mpld3.save_html(fig_2d, "nu_curve.html")
+            print("Interactive plot saved as nu_curve.html")
+        else:
+            print("Skipping HTML export because mpld3 is not installed.")
+
+# Connect events
+fig_2d.canvas.mpl_connect('pick_event', on_pick_mersenne)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_deselect)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_protractor)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_ruler)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_ruler)
+fig_2d.canvas.mpl_connect('motion_notify_event', on_motion_protractor)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_harmonics)
+fig_2d.canvas.mpl_connect('key_press_event', save_plot)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_draw)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_protractor)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_ruler)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_dimension)
+fig_2d.canvas.mpl_connect('key_press_event', to_construction)
+fig_2d.canvas.mpl_connect('key_press_event', hide_show)
+fig_2d.canvas.mpl_connect('key_press_event', reset_canvas)
+fig_2d.canvas.mpl_connect('key_press_event', save_stl)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_protractor)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_ruler)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_dimension)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_draw)
+fig_2d.canvas.mpl_connect('motion_notify_event', on_motion)
+fig_2d.canvas.mpl_connect('key_press_event', auto_close)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_pro_mode)
+fig_2d.canvas.mpl_connect('pick_event', on_pick)
+fig_2d.canvas.mpl_connect('button_press_event', on_button_press)
+fig_2d.canvas.mpl_connect('button_release_event', on_button_release)
+# Plot properties
+ax_2d.set_xlim(-0.1, WIDTH + 0.1)
+ax_2d.set_ylim(-1.5, HEIGHT + 0.1)
+ax_2d.set_xlabel('x (Exponents: 2 to 11B)')
+ax_2d.set_ylabel('y')
+ax_2d.set_title('Golden Spiral with 52 Mersenne Prime Curves on A3 Page\n' + scale_key_text, fontsize=10, pad=20)
+ax_2d.grid(True)
+ax_2d.set_aspect('equal')
+# Display default pod surface and draw default pod
+display_pod_surface()
+draw_default_pod(ax_2d)
+plt.show()
