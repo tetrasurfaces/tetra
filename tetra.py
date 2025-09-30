@@ -36,7 +36,8 @@ except ImportError:
     MPLD3_AVAILABLE = False
 from temperature_salt import secure_hash_two
 from kappawise import kappa_coord
-from nurks_surface import bspline_basis, bspline_basis_periodic, custom_interoperations_green_curve
+from nurks_surface import bspline_basis, bspline_basis_periodic
+from id_util_nurks_surface import custom_interoperations_green_curve
 # Set precision for Decimal
 getcontext().prec = 28
 # Suppress warnings
