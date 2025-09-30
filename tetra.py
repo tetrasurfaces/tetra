@@ -27,17 +27,17 @@ import warnings
 from matplotlib import MatplotlibDeprecationWarning
 import struct
 import base64
+from temperature_salt import secure_hash_two
+from kappawise import kappa_coord
+from nurks_surface import bspline_basis, bspline_basis_periodic
+from id_util_nurks_surface import custom_interoperations_green_curve
 # Import mpld3 if available for HTML export
 try:
     import mpld3
     MPLD3_AVAILABLE = True
 except ImportError:
-    print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
-from temperature_salt import secure_hash_two
-from kappawise import kappa_coord
-from nurks_surface import bspline_basis, bspline_basis_periodic
-from id_util_nurks_surface import custom_interoperations_green_curve
+    print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
 # Set precision for Decimal
 getcontext().prec = 28
 # Suppress warnings
@@ -184,8 +184,8 @@ vanishing_points = [] # Vanishing points for each triangulation
 previous_kappa = 1.0 # Initial kappa for decay
 curvature = 1.0 # Initial curvature (kappa)
 height = 0.5 # Initial height for 3D model
-num_rings = 20 # Number of loft rings
-fractal_level = 3 # Fractal level for flowers
+num_rings = 50 # Increased for higher fidelity
+fractal_level = 5 # Increased for more detail
 radial_chord = 0.5 # Radial chord for flower
 tangential_chord = 0.2 # Tangential chord for flower
 height_chord = 0.1 # Height chord for flower
@@ -197,12 +197,12 @@ harmonic_texts = []
 annotation_objects = []
 # Pre-compute kappa grid
 kappa_grid = kappa_coord(grid_size=100)
-# Fractal Flower Mesh
+# Fractal Flower Mesh with rounded corners
 def fractal_flower(center, scale, level, all_polygons, rotation_angle=0.0):
     """
     Recursively generates flower-shaped polygons for the surface.
     Collects all base-level flower polygons in all_polygons (list of list of [x,y,z]).
-    Uses 36 points for better flower resolution with curved petals.
+    Uses more points for rounded corners.
     Applies rotation to the points.
     Args:
         center: [x, y, z] center of the flower.
@@ -213,7 +213,7 @@ def fractal_flower(center, scale, level, all_polygons, rotation_angle=0.0):
     """
     rot_cos = np.cos(rotation_angle)
     rot_sin = np.sin(rotation_angle)
-    num_points = 37 # 36 points for higher resolution
+    num_points = 37 * 4 # Increased 4x for smoother, rounded corners (bezier-like approximation)
     t = np.linspace(0, 2 * np.pi, num_points)[:-1]
     r = scale * (radial_chord + tangential_chord * np.sin(6 * t)) # 6 petals, use sin for symmetry if needed
     dx = r * np.cos(t)
@@ -227,7 +227,7 @@ def fractal_flower(center, scale, level, all_polygons, rotation_angle=0.0):
     all_polygons.append(polygon)
     if level == 0:
         return
-    # Add smaller flowers at petal tips
+    # Add smaller flowers at petal tips (with triplet grouping for uniformity)
     small_scale = scale / PHI # Golden ratio scale
     for i in range(6):
         theta = i * (2 * np.pi / 6)
@@ -241,6 +241,16 @@ def fractal_flower(center, scale, level, all_polygons, rotation_angle=0.0):
         tip_z = center[2] + tip_dz
         tip_center = [tip_x, tip_y, tip_z]
         fractal_flower(tip_center, small_scale, level - 1, all_polygons, rotation_angle + np.pi)
+        # Add triplet small flowers for uniformity
+        for j in [-1, 1]:
+            offset_theta = theta + j * (np.pi / 18)  # Small offset for triplet
+            offset_dx = tip_r * 0.5 * np.cos(offset_theta)  # Smaller scale for triplets
+            offset_dy = tip_r * 0.5 * np.sin(offset_theta)
+            offset_x = center[0] + offset_dx * rot_cos - offset_dy * rot_sin
+            offset_y = center[1] + offset_dx * rot_sin + offset_dy * rot_cos
+            offset_z = center[2] + tip_dz * 0.5
+            offset_center = [offset_x, offset_y, offset_z]
+            fractal_flower(offset_center, small_scale * 0.5, level - 1, all_polygons, rotation_angle + np.pi)
 # Triangulate polygon for rendering (fan triangulation)
 def triangulate_poly(poly):
     tris = []
@@ -253,7 +263,7 @@ def hash_entropy(p):
     h = int(hashlib.sha256(h_str.encode()).hexdigest(), 16) % 1000 / 1000.0 * 0.05 - 0.025
     return h
 # Build mesh using fractal flower (ties to curve by scaling to curve length)
-def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_points=None, fractal_level=3):
+def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=50, num_points=420, fractal_level=5):
     """
     Builds two surfaces meeting at the 3D curve with vertical tangent, inheriting each other's curvature in transition.
     Integrates fractal flower for complex surface detail on caps, scaled by curve length.
@@ -443,6 +453,118 @@ def compute_golden_spiral():
     x *= scale_factor
     y *= scale_factor
     return x, y
+def bspline_basis(u, i, p, knots):
+    if p == 0:
+        if i < 0 or i + 1 >= len(knots):
+            return 0.0
+        return 1.0 if knots[i] <= u <= knots[i + 1] else 0.0
+  
+    if i < 0 or i >= len(knots) - 1:
+        return 0.0
+  
+    term1 = 0.0
+    if i + p < len(knots):
+        den1 = knots[i + p] - knots[i]
+        if den1 > 0:
+            term1 = ((u - knots[i]) / den1) * bspline_basis(u, i, p - 1, knots)
+  
+    term2 = 0.0
+    if i + p + 1 < len(knots):
+        den2 = knots[i + p + 1] - knots[i + 1]
+        if den2 > 0:
+            term2 = ((knots[i + p + 1] - u) / den2) * bspline_basis(u, i + 1, p - 1, knots)
+  
+    return term1 + term2
+def bspline_basis_periodic(u, i, p, knots, n):
+    i = i % n
+    if p == 0:
+        k0 = knots[i % len(knots)]
+        k1 = knots[(i + 1) % len(knots)]
+        if k0 > k1: # Wrap-around interval
+            return 1.0 if u >= k0 or u < k1 else 0.0
+        else:
+            return 1.0 if k0 <= u < k1 else 0.0
+  
+    k_i = knots[i % len(knots)]
+    k_ip = knots[(i + p) % len(knots)]
+    den1 = k_ip - k_i
+    if den1 < 0:
+        den1 += 1.0 # Adjust for wrap-around
+    term1 = 0.0
+    if den1 > 0:
+        term1 = ((u - k_i) / den1) * bspline_basis_periodic(u, i, p - 1, knots, n)
+  
+    k_i1 = knots[(i + 1) % len(knots)]
+    k_ip1 = knots[(i + p + 1) % len(knots)]
+    den2 = k_ip1 - k_i1
+    if den2 < 0:
+        den2 += 1.0 # Adjust for wrap-around
+    term2 = 0.0
+    if den2 > 0:
+        term2 = ((k_ip1 - u) / den2) * bspline_basis_periodic(u, i + 1, p - 1, knots, n)
+  
+    return term1 + term2
+# Custom interoperations for greencurve using NURBS with local kappa adjustment for closure
+def custom_interoperations_green_curve(points, kappas, is_closed=False):
+    """
+    Custom Non-Uniform Rational Kappa Spline (NURKS) approximation for green curve with closure adjustments.
+    For closed curves, extends control points on both sides and shifts knot vector for smooth periodicity.
+    """
+    points = np.array(points)
+    kappas = np.array(kappas)
+    degree = 3 # Fixed degree for continuity
+    num_output_points = 1000
+  
+    if is_closed and len(points) > degree:
+        n = len(points)
+        extended_points = np.concatenate((points[n-degree:], points, points[0:degree]))
+        extended_kappas = np.concatenate((kappas[n-degree:], kappas, kappas[0:degree]))
+        len_extended = len(extended_points)
+        knots = np.linspace(-degree / float(n), 1 + degree / float(n), len_extended + 1)
+  
+        u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
+  
+        smooth_x = np.zeros(num_output_points)
+        smooth_y = np.zeros(num_output_points)
+  
+        for j, u in enumerate(u_fine):
+            num_x, num_y, den = 0.0, 0.0, 0.0
+            for i in range(len_extended):
+                b = bspline_basis(u, i, degree, knots)
+                w = extended_kappas[i] * b
+                num_x += w * extended_points[i, 0]
+                num_y += w * extended_points[i, 1]
+                den += w
+            if den > 0:
+                smooth_x[j] = num_x / den
+                smooth_y[j] = num_y / den
+  
+        smooth_x = np.append(smooth_x, smooth_x[0])
+        smooth_y = np.append(smooth_y, smooth_y[0])
+  
+    else:
+        # Cumsum of distances for open
+        t = np.cumsum([0] + [np.linalg.norm(points[i+1] - points[i]) for i in range(len(points)-1)])
+        knots = np.concatenate(([0] * (degree + 1), t / t[-1] if t[-1] > 0 else np.linspace(0, 1, len(t)), [1] * (degree)))
+  
+        u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
+  
+        smooth_x = np.zeros(num_output_points)
+        smooth_y = np.zeros(num_output_points)
+  
+        for j, u in enumerate(u_fine):
+            num_x, num_y, den = 0.0, 0.0, 0.0
+            for i in range(len(points)):
+                b = bspline_basis(u, i, degree, knots)
+                w = kappas[i] * b if i < len(kappas) else kappas[-1] * b
+                num_x += w * points[i, 0]
+                num_y += w * points[i, 1]
+                den += w
+            if den > 0:
+                smooth_x[j] = num_x / den
+                smooth_y[j] = num_y / den
+  
+    return smooth_x, smooth_y
 # Compute kappa for a segment, second endpoint influences next kappa
 def compute_segment_kappa(p1, p2, base_kappa=1.0, prev_kappa=1.0):
     x1, y1 = p1
@@ -1028,7 +1150,7 @@ def compute_curvature(x, y, t):
     denominator = np.where(denominator == 0, 1e-10, denominator)
     return numerator / denominator
 # Generate base pod curve (closed for boundary surface, now 3D curve)
-def generate_pod_curve_closed(num_points=200, phase=0.0): # Increased num_points for better resolution
+def generate_pod_curve_closed(num_points=420, phase=0.0): # Increased for 1mm fidelity
     t = np.linspace(0, 2 * np.pi, num_points) # Full closed loop
     r = radial_chord + tangential_chord * np.cos(6 * t + phase) # Flower-like top profile
     x = r * np.cos(t)
@@ -1074,7 +1196,7 @@ def save_stl(event):
 # Display pod surface by default in 3D with curvature continuous end caps
 def display_pod_surface():
     global current_vertices, current_faces
-    x_curve, y_curve, z_curve = generate_pod_curve_closed(200) # Increased for resolution
+    x_curve, y_curve, z_curve = generate_pod_curve_closed(420) # Increased for resolution
     current_vertices, current_faces = build_mesh(x_curve, y_curve, z_curve)
     verts = [[current_vertices[i] for i in f] for f in current_faces]
     ax_3d.add_collection3d(Poly3DCollection(verts, alpha=0.5, facecolors=cm.viridis(np.linspace(0, 1, len(verts)))))
@@ -1085,7 +1207,7 @@ def display_pod_surface():
     fig_3d.canvas.draw()
 # Draw default pod ellipse as green curve on 2D canvas
 def draw_default_pod(ax, color='g'):
-    x, y, _ = generate_pod_curve_closed(num_points=36) # Increased to 36 for better flower
+    x, y, _ = generate_pod_curve_closed(num_points=36*4) # Increased for rounded corners
     x_control = x[:-1]
     y_control = y[:-1]
     scale = 0.6 # Scale for large curve
