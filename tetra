@@ -205,7 +205,7 @@ def fractal_flower(center, scale, level, all_polygons, rotation_angle=0.0):
     """
     Recursively generates flower-shaped polygons for the surface.
     Collects all base-level flower polygons in all_polygons (list of list of [x,y,z]).
-    Uses 12 points for dodecagon approximation with curved petals.
+    Uses 36 points for better flower resolution with curved petals.
     Applies rotation to the points.
     Args:
         center: [x, y, z] center of the flower.
@@ -216,32 +216,20 @@ def fractal_flower(center, scale, level, all_polygons, rotation_angle=0.0):
     """
     rot_cos = np.cos(rotation_angle)
     rot_sin = np.sin(rotation_angle)
-    if level == 0:
-        # Base flower polygon with 12 points
-        t = np.linspace(0, 2 * np.pi, 13)[:-1] # 12 points
-        r = scale * (radial_chord + tangential_chord * np.cos(6 * t)) # 6 petals
-        dx = r * np.cos(t)
-        dy = r * np.sin(t)
-        dz = scale * height_chord * np.cos(6 * t) # Curved z for surface
-        # Apply rotation to dx, dy (around z)
-        x_rot = center[0] + dx * rot_cos - dy * rot_sin
-        y_rot = center[1] + dx * rot_sin + dy * rot_cos
-        z_rot = center[2] + dz
-        polygon = [[x_rot[j], y_rot[j], z_rot[j]] for j in range(12)]
-        all_polygons.append(polygon)
-        return
-    # Base flower
-    t = np.linspace(0, 2 * np.pi, 13)[:-1]
-    r = scale * (radial_chord + tangential_chord * np.cos(6 * t))
+    num_points = 37 # 36 points for higher resolution
+    t = np.linspace(0, 2 * np.pi, num_points)[:-1]
+    r = scale * (radial_chord + tangential_chord * np.sin(6 * t)) # 6 petals, use sin for symmetry if needed
     dx = r * np.cos(t)
     dy = r * np.sin(t)
-    dz = scale * height_chord * np.cos(6 * t)
-    # Apply rotation
+    dz = scale * height_chord * np.cos(6 * t) # Curved z for surface
+    # Apply rotation to dx, dy (around z)
     x_rot = center[0] + dx * rot_cos - dy * rot_sin
     y_rot = center[1] + dx * rot_sin + dy * rot_cos
     z_rot = center[2] + dz
-    polygon = [[x_rot[j], y_rot[j], z_rot[j]] for j in range(12)]
+    polygon = [[x_rot[j], y_rot[j], z_rot[j]] for j in range(len(t))]
     all_polygons.append(polygon)
+    if level == 0:
+        return
     # Add smaller flowers at petal tips
     small_scale = scale / PHI # Golden ratio scale
     for i in range(6):
@@ -292,8 +280,9 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
     n = len(x_curve)
     if z_curve is None:
         z_curve = np.zeros(n) # Default to flat if no z provided
-    center_x = drawing_points[0][0] if drawing_points else np.mean(x_curve) # Datum at kappa node 1 if available
-    center_y = drawing_points[0][1] if drawing_points else np.mean(y_curve)
+    # Use node 2 as datum when closed
+    center_x = drawing_points[1][0] if is_closed and len(drawing_points) > 1 else drawing_points[0][0] if drawing_points else np.mean(x_curve)
+    center_y = drawing_points[1][1] if is_closed and len(drawing_points) > 1 else drawing_points[0][1] if drawing_points else np.mean(y_curve)
     vertices = []
     faces = []
     # Parting line on 3D curve
@@ -475,7 +464,6 @@ def bspline_basis(u, i, p, knots):
         den2 = knots[i + p + 1] - knots[i + 1]
         if den2 > 0:
             term2 = ((knots[i + p + 1] - u) / den2) * bspline_basis(u, i + 1, p - 1, knots)
-    
     return term1 + term2
 def bspline_basis_periodic(u, i, p, knots, n):
     i = i % n
