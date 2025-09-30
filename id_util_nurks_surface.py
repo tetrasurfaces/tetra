@@ -34,17 +34,18 @@ def bspline_basis(u, i, p, knots):
     term2 = ((knots[i + p + 1] - u) / den2 * bspline_basis(u, i + 1, p - 1, knots)) if den2 > 0 else 0.0
     return term1 + term2
 
-def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.8, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=2.0, degree=3, res=50):
+def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.8, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=2.0, inflection=0.5, degree=3, res=50):
     """
-    Compute the NURKS surface points for a 6-petal flower shape.
+    Compute the NURKS surface points for a 6-petal flower shape as a single surface body.
     
     Parameters:
-    - ns_diameter, nw_se_diameter, ne_sw_diameter: Diameters for elliptical deformation.
+    - ns_diameter, nw_se_diameter, ne_sw_diameter: Diameters for elliptical deformation of the boundary profile.
     - twist: Twist angle for petals.
-    - amplitude: Amplitude of petal undulations.
-    - radii: Base radius.
+    - amplitude: Amplitude of petal undulations (positive or negative for inflection).
+    - radii: Base radius for the boundary profile.
     - kappa: Curvature modulation for Z.
-    - height: Maximum height of the dome.
+    - height: Maximum height of the surface.
+    - inflection: Controls the inflection point in the Z profile (0 to 1, where inflection occurs).
     - degree: Spline degree.
     - res: Resolution for u and v.
     
@@ -54,7 +55,7 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
     """
     num_petals = 6
     num_u = num_petals * 2  # 12 control points in angular direction
-    num_v = degree + 1  # Enough for the degree in radial direction
+    num_v = degree + 1  # Radial control layers
     
     control_points = np.zeros((num_u, num_v, 3))
     weights = np.ones((num_u, num_v))
@@ -70,10 +71,12 @@ def compute_nurks_surface(ns_diameter=2.0, nw_se_diameter=1.5, ne_sw_diameter=1.
         y_base = r_base * np.sin(theta) * (b + a) / 2
         for j in range(num_v):
             v = j / (num_v - 1) if num_v > 1 else 0
-            scale = v
+            scale = 1 - v  # Reverse scale: v=0 at boundary (flower profile), v=1 at center
             control_points[i, j, 0] = scale * x_base
             control_points[i, j, 1] = scale * y_base
-            control_points[i, j, 2] = kappa * height * (1 - v ** 2)  # Parabolic dome shape
+            # Adjusted Z for inflection: sigmoid-like curve for better control over shape
+            z_norm = 1 / (1 + np.exp(-kappa * (v - inflection) * 10))  # Steep transition at inflection point
+            control_points[i, j, 2] = height * z_norm
     
     # For periodic in u: duplicate first degree rows
     control_points_u = np.concatenate((control_points, control_points[:degree, :, :]), axis=0)
@@ -129,14 +132,15 @@ ax = fig.add_subplot(111, projection='3d')
 plt.subplots_adjust(left=0.25, bottom=0.25)
 
 # Slider axes
-ax_ns = plt.axes([0.25, 0.20, 0.65, 0.03])
-ax_nw = plt.axes([0.25, 0.15, 0.65, 0.03])
-ax_ne = plt.axes([0.25, 0.10, 0.65, 0.03])
-ax_twist = plt.axes([0.25, 0.05, 0.65, 0.03])
-ax_amp = plt.axes([0.25, 0.00, 0.65, 0.03])
+ax_ns = plt.axes([0.25, 0.22, 0.65, 0.03])
+ax_nw = plt.axes([0.25, 0.17, 0.65, 0.03])
+ax_ne = plt.axes([0.25, 0.12, 0.65, 0.03])
+ax_twist = plt.axes([0.25, 0.07, 0.65, 0.03])
+ax_amp = plt.axes([0.25, 0.02, 0.65, 0.03])
 ax_radii = plt.axes([0.05, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
 ax_kappa = plt.axes([0.10, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
 ax_height = plt.axes([0.15, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
+ax_inflection = plt.axes([0.20, 0.25, 0.0225, 0.63], facecolor='lightgoldenrodyellow')
 
 # Initial values
 init_ns = 2.0
@@ -147,16 +151,18 @@ init_amp = 0.3
 init_radii = 1.0
 init_kappa = 1.0
 init_height = 2.0
+init_inflection = 0.5
 
 # Sliders
 s_ns = Slider(ax_ns, 'NS Diam', 0.5, 3.0, valinit=init_ns)
 s_nw = Slider(ax_nw, 'NW/SE Diam', 0.5, 3.0, valinit=init_nw)
 s_ne = Slider(ax_ne, 'NE/SW Diam', 0.5, 3.0, valinit=init_ne)
 s_twist = Slider(ax_twist, 'Twist', 0.0, np.pi, valinit=init_twist)
-s_amp = Slider(ax_amp, 'Amplitude', 0.0, 0.5, valinit=init_amp)
+s_amp = Slider(ax_amp, 'Amplitude', -0.5, 0.5, valinit=init_amp)
 s_radii = Slider(ax_radii, 'Radii', 0.1, 2.0, valinit=init_radii, orientation='vertical')
 s_kappa = Slider(ax_kappa, 'Kappa', 0.5, 1.5, valinit=init_kappa, orientation='vertical')
 s_height = Slider(ax_height, 'Height', 0.5, 3.0, valinit=init_height, orientation='vertical')
+s_inflection = Slider(ax_inflection, 'Inflection', 0.0, 1.0, valinit=init_inflection, orientation='vertical')
 
 def update(val):
     ns = s_ns.val
@@ -167,8 +173,9 @@ def update(val):
     radii = s_radii.val
     kappa = s_kappa.val
     height = s_height.val
+    inflection = s_inflection.val
     
-    X, Y, Z, control_x, control_y, control_z = compute_nurks_surface(ns, nw, ne, twist, amp, radii, kappa, height)
+    X, Y, Z, control_x, control_y, control_z = compute_nurks_surface(ns, nw, ne, twist, amp, radii, kappa, height, inflection)
     
     ax.clear()
     ax.plot_surface(X, Y, Z, cmap='viridis')
@@ -191,7 +198,7 @@ def update(val):
         cz = control_z[i * num_v : (i + 1) * num_v]
         ax.plot(cx, cy, cz, 'k--')
     
-    ax.set_title('6-Petal NURKS Surface with Control Points')
+    ax.set_title('6-Petal NURKS Single Surface with Flower Profile Boundary')
     ax.set_xlabel('X')
     ax.set_ylabel('Y')
     ax.set_zlabel('Z')
@@ -210,6 +217,7 @@ s_amp.on_changed(update)
 s_radii.on_changed(update)
 s_kappa.on_changed(update)
 s_height.on_changed(update)
+s_inflection.on_changed(update)
 
 # Initial update
 update(None)
