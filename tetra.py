@@ -34,13 +34,9 @@ try:
 except ImportError:
     print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
-# Assuming kappawise.py exists with compute_kappa_grid function; if not, define a placeholder
-try:
-    from kappawise import compute_kappa_grid
-except ImportError:
-    def compute_kappa_grid(grid_size):
-        # Placeholder: return a dummy 3D array
-        return np.random.rand(grid_size, grid_size, 360) # Example shape
+from temperature_salt import secure_hash_two
+from kappawise import kappa_coord
+from nurks_surface import bspline_basis, bspline_basis_periodic, custom_interoperations_green_curve
 # Set precision for Decimal
 getcontext().prec = 28
 # Suppress warnings
@@ -468,115 +464,6 @@ def compute_golden_spiral():
     x *= scale_factor
     y *= scale_factor
     return x, y
-def bspline_basis(u, i, p, knots):
-    if p == 0:
-        if i < 0 or i + 1 >= len(knots):
-            return 0.0
-        return 1.0 if knots[i] <= u <= knots[i + 1] else 0.0
-  
-    if i < 0 or i >= len(knots) - 1:
-        return 0.0
-  
-    term1 = 0.0
-    if i + p < len(knots):
-        den1 = knots[i + p] - knots[i]
-        if den1 > 0:
-            term1 = ((u - knots[i]) / den1) * bspline_basis(u, i, p - 1, knots)
-  
-    term2 = 0.0
-    if i + p + 1 < len(knots):
-        den2 = knots[i + p + 1] - knots[i + 1]
-        if den2 > 0:
-            term2 = ((knots[i + p + 1] - u) / den2) * bspline_basis(u, i + 1, p - 1, knots)
-  
-    return term1 + term2
-def bspline_basis_periodic(u, i, p, knots, n):
-    i = i % n
-    if p == 0:
-        k0 = knots[i % len(knots)]
-        k1 = knots[(i + 1) % len(knots)]
-        if k0 > k1:  # Wrap-around interval
-            return 1.0 if u >= k0 or u < k1 else 0.0
-        else:
-            return 1.0 if k0 <= u < k1 else 0.0
-    k_i = knots[i % len(knots)]
-    k_ip = knots[(i + p) % len(knots)]
-    den1 = k_ip - k_i
-    if den1 < 0:
-        den1 += 1.0  # Adjust for wrap-around
-    term1 = 0.0
-    if den1 > 0:
-        term1 = ((u - k_i) / den1) * bspline_basis_periodic(u, i, p - 1, knots, n)
-    k_i1 = knots[(i + 1) % len(knots)]
-    k_ip1 = knots[(i + p + 1) % len(knots)]
-    den2 = k_ip1 - k_i1
-    if den2 < 0:
-        den2 += 1.0  # Adjust for wrap-around
-    term2 = 0.0
-    if den2 > 0:
-        term2 = ((k_ip1 - u) / den2) * bspline_basis_periodic(u, i + 1, p - 1, knots, n)
-    return term1 + term2
-# Custom interoperations for greencurve using NURBS with local kappa adjustment for closure
-def custom_interoperations_green_curve(points, kappas, is_closed=False):
-    """
-    Custom Non-Uniform Rational Kappa Spline (NURKS) approximation for green curve with closure adjustments.
-    For closed curves, extends control points on both sides and shifts knot vector for smooth periodicity.
-    """
-    points = np.array(points)
-    kappas = np.array(kappas)
-    degree = 3 # Fixed degree for continuity
-    num_output_points = 1000
-  
-    if is_closed and len(points) > degree:
-        n = len(points)
-        extended_points = np.concatenate((points[n-degree:], points, points[0:degree]))
-        extended_kappas = np.concatenate((kappas[n-degree:], kappas, kappas[0:degree]))
-        len_extended = len(extended_points)
-        knots = np.linspace(-degree / float(n), 1 + degree / float(n), len_extended + 1)
-  
-        u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
-  
-        smooth_x = np.zeros(num_output_points)
-        smooth_y = np.zeros(num_output_points)
-  
-        for j, u in enumerate(u_fine):
-            num_x, num_y, den = 0.0, 0.0, 0.0
-            for i in range(len_extended):
-                b = bspline_basis(u, i, degree, knots)
-                w = extended_kappas[i] * b
-                num_x += w * extended_points[i, 0]
-                num_y += w * extended_points[i, 1]
-                den += w
-            if den > 0:
-                smooth_x[j] = num_x / den
-                smooth_y[j] = num_y / den
-  
-        smooth_x = np.append(smooth_x, smooth_x[0])
-        smooth_y = np.append(smooth_y, smooth_y[0])
-  
-    else:
-        # Cumsum of distances for open
-        t = np.cumsum([0] + [np.linalg.norm(points[i+1] - points[i]) for i in range(len(points)-1)])
-        knots = np.concatenate(([0] * (degree + 1), t / t[-1] if t[-1] > 0 else np.linspace(0, 1, len(t)), [1] * (degree)))
-  
-        u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
-  
-        smooth_x = np.zeros(num_output_points)
-        smooth_y = np.zeros(num_output_points)
-  
-        for j, u in enumerate(u_fine):
-            num_x, num_y, den = 0.0, 0.0, 0.0
-            for i in range(len(points)):
-                b = bspline_basis(u, i, degree, knots)
-                w = kappas[i] * b if i < len(kappas) else kappas[-1] * b
-                num_x += w * points[i, 0]
-                num_y += w * points[i, 1]
-                den += w
-            if den > 0:
-                smooth_x[j] = num_x / den
-                smooth_y[j] = num_y / den
-  
-    return smooth_x, smooth_y
 # Compute kappa for a segment, second endpoint influences next kappa
 def compute_segment_kappa(p1, p2, base_kappa=1.0, prev_kappa=1.0):
     x1, y1 = p1
@@ -1431,9 +1318,152 @@ def on_motion_protractor(event):
     x_spiral, y_spiral = compute_curve_points(np.pi, 2 * np.pi, num_points, 1.0)
     cursor_spiral.set_data(x + x_spiral, y + y_spiral)
     # Update baseline spiral (indexed at (0,0))
-    x_base = 0.0
-    scale_factor = (event.xdata / WIDTH) if event.xdata > 0 else 0.01
-    scaled_a = A_SPIRAL * scale_factor
-    height_factor = (event.ydata / HEIGHT) if event.ydata > 0 else 0.01
-    x_base_spiral, y_base_spiral = compute_curve_points(2 * np.pi, np.pi, num_points, scale_factor)
-   
+x_base = 0.0
+scale_factor = (event.xdata / WIDTH) if event.xdata > 0 else 0.01
+scaled_a = A_SPIRAL * scale_factor
+height_factor = (event.ydata / HEIGHT) if event.ydata > 0 else 0.01
+x_base_spiral, y_base_spiral = compute_curve_points(2 * np.pi, np.pi, num_points, scale_factor)
+x_base_spiral = x_base + x_base_spiral * np.abs(np.cos(np.linspace(2 * np.pi, np.pi, num_points)))
+y_base_spiral = y_base_spiral * height_factor
+baseline_spiral.set_data(x_base_spiral, y_base_spiral)
+# Compute the chord length of the baseline spiral
+x_start = x_base_spiral[0]
+y_start = y_base_spiral[0]
+x_end = x_base_spiral[-1]
+y_end = y_base_spiral[-1]
+baseline_chord = np.sqrt((x_end - x_start)**2 + (y_end - y_start)**2)
+# Update second baseline spiral (indexed at (1.0, 0))
+x_base_2 = 1.0
+x_base_spiral_2, y_base_spiral_2 = compute_curve_points(2 * np.pi, np.pi, num_points, scale_factor)
+x_base_spiral_2 = x_base_2 + x_base_spiral_2 * np.abs(np.cos(np.linspace(2 * np.pi, np.pi, num_points)))
+y_base_spiral_2 = y_base_spiral_2 * height_factor
+baseline_spiral_2.set_data(x_base_spiral_2, y_base_spiral_2)
+# Compute the chord length of the second baseline spiral
+x_start_2 = x_base_spiral_2[0]
+y_start_2 = y_base_spiral_2[0]
+x_end_2 = x_base_spiral_2[-1]
+y_end_2 = y_base_spiral_2[-1]
+baseline_chord_2 = np.sqrt((x_end_2 - x_start_2)**2 + (y_end_2 - y_start_2)**2)
+# Update crosslines
+vertical_line.set_data([target_chord, target_chord], [0, HEIGHT])
+vertical_label.set_position((target_chord, HEIGHT + 0.05))
+if y > 0:
+    horizontal_line.set_data([0, WIDTH], [y, y])
+else:
+    horizontal_line.set_data([], [])
+# Update protractor line (from (0,0) to mouse position)
+anchor_x, anchor_y = 0.0, 0.0
+protractor_line.set_data([anchor_x, x], [anchor_y, y])
+# Compute the angle relative to the baseline (y=0)
+dx = x - anchor_x
+dy = y - anchor_y
+angle = np.arctan2(dy, dx) * 180 / np.pi
+# Update protractor arc
+mid_x = (anchor_x + x) / 2
+mid_y = (anchor_y + y) / 2
+radius_arc = np.sqrt(dx**2 + dy**2) / 4
+start_angle = 0
+end_angle = angle
+theta_arc = np.linspace(np.deg2rad(start_angle), np.deg2rad(end_angle), num_points)
+x_arc = mid_x + radius_arc * np.cos(theta_arc)
+y_arc = mid_y + radius_arc * np.sin(theta_arc)
+protractor_arc.set_data(x_arc, y_arc)
+# Update swinging ghost curves
+offsets = [-10, -5, 5, 10] # Degrees
+for i, offset in enumerate(offsets):
+    angle_offset = angle + offset
+    x_ghost, y_ghost = compute_curve_points(np.pi, 2 * np.pi, num_points // 2, 1.0, angle_offset)
+    ghost_curves[i].set_data(anchor_x + x_ghost, anchor_y + y_ghost)
+# Update protractor spiral at the mouse position
+line_vec = np.array([x - anchor_x, y - anchor_y])
+line_len = np.sqrt(dx**2 + dy**2)
+if line_len == 0:
+    line_len = 1e-10
+normal_vec = np.array([-(y - anchor_y), x - anchor_x]) / line_len
+x_spiral, y_spiral = compute_curve_points(np.pi, 2 * np.pi, num_points, 1.0)
+x_mirrored = []
+y_mirrored = []
+for xs, ys in zip(x_spiral, y_spiral):
+    point = np.array([xs, ys])
+    v = point - np.array([anchor_x, anchor_y])
+    projection = np.dot(v, normal_vec) * normal_vec
+    mirrored_point = point - 2 * projection
+    x_mirrored.append(mirrored_point[0])
+    y_mirrored.append(mirrored_point[1])
+protractor_spiral_2.set_data(x + x_mirrored, y + y_mirrored)
+# Update protractor text
+protractor_text.set_position((mid_x, mid_y))
+protractor_text.set_text(f'Angle: {angle:.2f}°\nκ at 2πR: {kappa_at_2piR:.4f}')
+# Calculate chord length from cursor to the start of the green segment
+x_start_green, y_start_green = x_green_final[0], y_green_scaled[0]
+chord_to_green = np.sqrt((x - x_start_green)**2 + (y - y_start_green)**2)
+# Update cursor text
+text_str = (f'κ: {scale_factor:.4f}\n'
+            f'Height Factor: {height_factor:.4f}\n'
+            f'Cursor: ({x:.4f}, {y:.4f})\n'
+            f'Chord to Green: {chord_to_green:.4f}\n'
+            f'Baseline Chord (x=0): {baseline_chord:.4f}\n'
+            f'Baseline Chord (x=1): {baseline_chord_2:.4f}')
+cursor_text.set_text(text_str)
+fig_2d.canvas.draw()
+
+# Toggle harmonics
+def toggle_harmonics(event):
+    global show_harmonics
+    if event.key == 'h':
+        show_harmonics = not show_harmonics
+        for text in harmonic_texts:
+            text.set_visible(show_harmonics)
+        print(f"Harmonic frequencies {'shown' if show_harmonics else 'hidden'}")
+        fig_2d.canvas.draw()
+
+# Save plot
+def save_plot(event):
+    if event.key == 'w':
+        plt.savefig("nu_curve.png", dpi=300, bbox_inches='tight')
+        print("Plot saved as nu_curve.png")
+        if MPLD3_AVAILABLE:
+            mpld3.save_html(fig_2d, "nu_curve.html")
+            print("Interactive plot saved as nu_curve.html")
+        else:
+            print("Skipping HTML export because mpld3 is not installed.")
+
+# Connect events
+fig_2d.canvas.mpl_connect('pick_event', on_pick_mersenne)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_deselect)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_protractor)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_ruler)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_ruler)
+fig_2d.canvas.mpl_connect('motion_notify_event', on_motion_protractor)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_harmonics)
+fig_2d.canvas.mpl_connect('key_press_event', save_plot)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_draw)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_protractor)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_ruler)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_dimension)
+fig_2d.canvas.mpl_connect('key_press_event', to_construction)
+fig_2d.canvas.mpl_connect('key_press_event', hide_show)
+fig_2d.canvas.mpl_connect('key_press_event', reset_canvas)
+fig_2d.canvas.mpl_connect('key_press_event', save_stl)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_protractor)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_ruler)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_dimension)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_draw)
+fig_2d.canvas.mpl_connect('motion_notify_event', on_motion)
+fig_2d.canvas.mpl_connect('key_press_event', auto_close)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_pro_mode)
+fig_2d.canvas.mpl_connect('pick_event', on_pick)
+fig_2d.canvas.mpl_connect('button_press_event', on_button_press)
+fig_2d.canvas.mpl_connect('button_release_event', on_button_release)
+# Plot properties
+ax_2d.set_xlim(-0.1, WIDTH + 0.1)
+ax_2d.set_ylim(-1.5, HEIGHT + 0.1)
+ax_2d.set_xlabel('x (Exponents: 2 to 11B)')
+ax_2d.set_ylabel('y')
+ax_2d.set_title('Golden Spiral with 52 Mersenne Prime Curves on A3 Page\n' + scale_key_text, fontsize=10, pad=20)
+ax_2d.grid(True)
+ax_2d.set_aspect('equal')
+# Display default pod surface and draw default pod
+display_pod_surface()
+draw_default_pod(ax_2d)
+plt.show()
