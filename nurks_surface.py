@@ -22,8 +22,9 @@ from matplotlib.widgets import Slider, Button
 from mpl_toolkits.mplot3d import Axes3D
 import hashlib
 import struct
+from kappaSHA256 import kappa_sha256
 
-
+kappa_sha256==(data, kappa)
 
 def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, hex_mode=False):
     # Generate parametric surface points and mesh.
