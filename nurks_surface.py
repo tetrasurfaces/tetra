@@ -26,22 +26,6 @@ import mpmath
 mpmath.mp.dps = 19  # Precision for φ, π.
 from kappasha import kappasha256
 
-# Copyright 2025 Todd Hutchinson
-# Licensed under the Custom License (based on Apache 2.0) as per repository.
-# Fixed NURKS surface script: Replaced Button with CheckButtons for toggle to avoid mouse grab error, removed invalid def, corrected staggering to 2D U rows, used 2D indexing in tessellate, added error handling in export, inlined kappasha256 (URL empty).
-
-import numpy as np
-import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider, CheckButtons
-from mpl_toolkits.mplot3d import Axes3D
-import hashlib
-import struct
-import math
-import mpmath
-mpmath.mp.dps = 19  # Precision for φ, π.
-from kappasha import kappasha256
-
-# Inlined kappasha256 (from provided raw; URL empty).
 PHI_FLOAT = (1 + math.sqrt(5)) / 2  # φ ≈1.618
 KAPPA_BASE = 0.3536  # Odd Mersenne (m11/107)
 MODULO = 369  # Cyclic diffusion
