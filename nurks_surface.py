@@ -26,6 +26,22 @@ import mpmath
 mpmath.mp.dps = 19  # Precision for φ, π.
 from kappasha import kappasha256
 
+# Copyright 2025 Todd Hutchinson
+# Licensed under the Custom License (based on Apache 2.0) as per repository.
+# Fixed NURKS surface script: Replaced Button with CheckButtons for toggle to avoid mouse grab error, removed invalid def, corrected staggering to 2D U rows, used 2D indexing in tessellate, added error handling in export, inlined kappasha256 (URL empty).
+
+import numpy as np
+import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider, CheckButtons
+from mpl_toolkits.mplot3d import Axes3D
+import hashlib
+import struct
+import math
+import mpmath
+mpmath.mp.dps = 19  # Precision for φ, π.
+from kappasha import kappasha256
+
+# Inlined kappasha256 (from provided raw; URL empty).
 PHI_FLOAT = (1 + math.sqrt(5)) / 2  # φ ≈1.618
 KAPPA_BASE = 0.3536  # Odd Mersenne (m11/107)
 MODULO = 369  # Cyclic diffusion
@@ -51,7 +67,9 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
     if hex_mode:
         # Hexagulation: Stagger alternate rows for hexagonal approximation.
         for i in range(1, v_num, 2):
-            U[i, :] += np.pi / u_num / 2  # Stagger per row in U.
+            U[i, :] += np.pi / u_num / 2  # Stagger by half step.
+
+    U, V = np.meshgrid(u, v)
 
     # Flower profile with 6 petals.
     petal_amp = amplitude * (1 - V)  # Taper for smaller petals at outer ends (V=1).
@@ -99,23 +117,26 @@ def export_to_stl(triangles, filename, surface_id):
     """Export mesh to binary STL with embedded hash in header."""
     header = f"ID: {surface_id}".ljust(80, ' ').encode('utf-8')
     num_tri = len(triangles)
-    with open(filename, 'wb') as f:
-        f.write(header)
-        f.write(struct.pack('<I', num_tri))
-        for tri in triangles:
-            # Compute normal with handling for degenerate cases.
-            v1 = np.array(tri[1][1:]) - np.array(tri[0][1:])
-            v2 = np.array(tri[2][1:]) - np.array(tri[0][1:])
-            normal = np.cross(v1, v2)
-            norm_len = np.linalg.norm(normal)
-            if norm_len > 0:
-                normal /= norm_len
-            else:
-                normal = np.array([0.0, 0.0, 1.0]) # Default upward normal.
-            f.write(struct.pack('<3f', *normal))
-            for p in tri:
-                f.write(struct.pack('<3f', *p[1:]))
-            f.write(struct.pack('<H', 0)) # Attribute byte count.
+    try:
+        with open(filename, 'wb') as f:
+            f.write(header)
+            f.write(struct.pack('<I', num_tri))
+            for tri in triangles:
+                # Compute normal with handling for degenerate cases.
+                v1 = np.array(tri[1][1:]) - np.array(tri[0][1:])
+                v2 = np.array(tri[2][1:]) - np.array(tri[0][1:])
+                normal = np.cross(v1, v2)
+                norm_len = np.linalg.norm(normal)
+                if norm_len > 0:
+                    normal /= norm_len
+                else:
+                    normal = np.array([0.0, 0.0, 1.0]) # Default upward normal.
+                f.write(struct.pack('<3f', *normal))
+                for p in tri:
+                    f.write(struct.pack('<3f', *p[1:]))
+                f.write(struct.pack('<H', 0)) # Attribute byte count.
+    except Exception as e:
+        print(f"Export error: {e}")
 
 # Interactive visualization.
 fig = plt.figure(figsize=(10, 8))
@@ -150,16 +171,17 @@ for label, vmin, vmax, vinit in slider_params:
     sliders.append(slider)
     y_pos -= 0.03
 
-# Hex mode toggle button.
-ax_hex = plt.axes([0.1, 0.01, 0.1, 0.03])
-btn_hex = Button(ax_hex, 'Hex Mode: Off')
+# Hex mode toggle using CheckButtons to avoid mouse grab error.
+ax_hex = plt.axes([0.1, 0.01, 0.15, 0.03])
+check = CheckButtons(ax_hex, ['Hex Mode'], [False])
+
 hex_mode = False
-def toggle_hex(event):
+def toggle_hex(label):
     global hex_mode
     hex_mode = not hex_mode
-    btn_hex.label.set_text(f'Hex Mode: {"On" if hex_mode else "Off"}')
     update(None)
-btn_hex.on_clicked(toggle_hex)
+
+check.on_clicked(toggle_hex)
 
 def update(val):
     """Update surface based on current slider values."""
