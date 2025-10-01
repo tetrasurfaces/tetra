@@ -9,15 +9,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 # Proprietary Software - All Rights Reserved
-#
-# Copyright (C) 2025 Todd Hutchinson
-#
-# This software is proprietary and confidential. Unauthorized copying,
-# distribution, modification, or use is strictly prohibited without
-# express written permission from Todd Hutchinson.
 import numpy as np
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider, Button
+from matplotlib.widgets import Slider, CheckButtons, Button
 from mpl_toolkits.mplot3d import Axes3D
 import hashlib
 import struct
@@ -36,6 +30,133 @@ CAPACITY = 512  # 256-bit security
 OUTPUT_BITS = 256  # 256-bit output
 ROUNDS = 24  # Full Keccak rounds
 
+# Mersenne Fluctuation
+def mersenne_fluctuation(prime_index=11):
+    fluctuation = 0.0027 * (prime_index / 51.0)
+    return KAPPA_BASE + fluctuation if prime_index % 2 == 1 else 0.3563 + fluctuation
+
+# Kappa Calculation (Curvature Decay)
+def kappa_calc(n, round_idx, prime_index=11):
+    kappa_base = mersenne_fluctuation(prime_index)
+    abs_n = abs(n - 12) / 12.0
+    num = PHI_FLOAT ** abs_n - PHI_FLOAT ** (-abs_n)
+    denom = abs(PHI_FLOAT ** (10/3) - PHI_FLOAT ** (-10/3)) * abs(PHI_FLOAT ** (-5/6) - PHI_FLOAT ** (5/6))
+    result = (1 + kappa_base * num / denom) * (2 / 1.5) - 0.333 if 2 < n < 52 else max(0, 1.5 * math.exp(-((n - 60) ** 2) / 400.0) * math.cos(0.5 * (n - 316)))
+    return result % MODULO
+
+# Kappa Transform (Row-wise Curvature Weighting, Starts Pipeline)
+def kappa_transform(state, key, round_idx, prime_index):
+    for x in range(GRID_DIM):
+        for y in range(GRID_DIM):
+            n = x * y
+            kappa_val = kappa_calc(n, round_idx, prime_index)
+            shift = int(kappa_val % LANE_BITS)
+            state[x][y] ^= (key[x][y] >> shift) & ((1 << LANE_BITS) - 1)
+    return state
+
+# Standard Keccak Steps (NIST FIPS 202)
+def theta(state):
+    C = [0] * GRID_DIM
+    for x in range(GRID_DIM):
+        C[x] = state[x][0] ^ state[x][1] ^ state[x][2] ^ state[x][3] ^ state[x][4]
+    D = [0] * GRID_DIM
+    for x in range(GRID_DIM):
+        D[x] = C[(x - 1) % GRID_DIM] ^ ((C[(x + 1) % GRID_DIM] << 1) | (C[(x + 1) % GRID_DIM] >> 63))
+    for x in range(GRID_DIM):
+        for y in range(GRID_DIM):
+            state[x][y] ^= D[x]
+    return state
+
+def rho(state):
+    offsets = [[0, 36, 3, 41, 18], [1, 44, 10, 45, 2], [62, 6, 43, 15, 61], [28, 55, 25, 21, 56], [27, 20, 39, 8, 14]]
+    for x in range(GRID_DIM):
+        for y in range(GRID_DIM):
+            state[x][y] = ((state[x][y] << offsets[x][y]) | (state[x][y] >> (LANE_BITS - offsets[x][y]))) & ((1 << LANE_BITS) - 1)
+    return state
+
+def pi(state):
+    temp = [[0] * GRID_DIM for _ in range(GRID_DIM)]
+    for x in range(GRID_DIM):
+        for y in range(GRID_DIM):
+            temp[x][y] = state[(x + 3 * y) % GRID_DIM][x]
+    return temp
+
+def chi(state):
+    for x in range(GRID_DIM):
+        for y in range(GRID_DIM):
+            state[x][y] ^= (~state[(x + 1) % GRID_DIM][y]) & state[(x + 2) % GRID_DIM][y]
+    return state
+
+def iota(state, round_idx):
+    RC = [
+        0x0000000000000001, 0x0000000000008082, 0x800000000000808a, 0x8000000080008000,
+        0x000000000000808b, 0x0000000080000001, 0x8000000080008081, 0x8000000000008009,
+        0x000000000000008a, 0x0000000000000088, 0x0000000080008009, 0x000000008000000a,
+        0x000000008000808b, 0x8000000000000003, 0x8000000000008089, 0x8000000000008002,
+        0x8000000000000080, 0x000000000000800a, 0x800000008000000a, 0x8000000080008081,
+        0x8000000000008080, 0x0000000080000001, 0x8000000080008008, 0x8000000000008008
+    ]
+    state[0][0] ^= RC[round_idx]
+    return state
+
+# Sponge Helpers
+def pad_message(msg):
+    rate_bytes = RATE // 8
+    padded_len = ((len(msg) + rate_bytes - 1) // rate_bytes + 1) * rate_bytes
+    padded = msg + b'\x06' + b'\x00' * (padded_len - len(msg) - 2) + b'\x80'
+    return padded
+
+def absorb(state, chunk):
+    i = 0
+    for x in range(GRID_DIM):
+        for y in range(GRID_DIM):
+            if i < len(chunk):
+                state[x][y] ^= int.from_bytes(chunk[i:i+8], 'little')
+                i += 8
+    return state
+
+def squeeze(state, output_bits=OUTPUT_BITS):
+    hash_bytes = b''
+    for y in range(GRID_DIM):
+        for x in range(GRID_DIM):
+            hash_bytes += state[x][y].to_bytes(8, 'little')
+    return hash_bytes[:output_bits // 8].hex()
+
+# Division by 180 (Flatten to 0)
+def divide_by_180(hash_hex, key_quotient=None):
+    H = mpmath.mpf(int(hash_hex, 16))
+    pi = mpmath.pi
+    divided = H / pi
+    modded = divided % MODULO
+    flattened = 0 if modded < 1e-10 else modded
+    if key_quotient is not None:
+        recovered = int((key_quotient * pi) % (1 << OUTPUT_BITS))
+        return recovered, flattened
+    return flattened
+
+# KappaSHA-256 Hash Function
+def kappasha256(message: bytes, key: bytes, prime_index=11):
+    state = [[0 for _ in range(GRID_DIM)] for _ in range(GRID_DIM)]
+    key_int = int.from_bytes(key, 'big')
+    key_lanes = [[(key_int >> (LANE_BITS * (x * GRID_DIM + y))) & ((1 << LANE_BITS) - 1) for y in range(GRID_DIM)] for x in range(GRID_DIM)]
+    padded = pad_message(message)
+    rate_bytes = RATE // 8
+    for i in range(0, len(padded), rate_bytes):
+        chunk = padded[i:i + rate_bytes]
+        state = absorb(state, chunk)
+        for round_idx in range(ROUNDS):
+            state = kappa_transform(state, key_lanes, round_idx, prime_index)
+            state = theta(state)
+            state = rho(state)
+            state = pi(state)
+            state = chi(state)
+            state = iota(state, round_idx)
+    hash_hex = squeeze(state)
+    H = mpmath.mpf(int(hash_hex, 16))
+    quotient = mpmath.floor(H / mpmath.pi)
+    flattened = divide_by_180(hash_hex)
+    return hash_hex, flattened, quotient
+
 def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, hex_mode=False):
     """Generate parametric NURKS surface points (X, Y, Z) and copyright hash ID using kappasha256."""
     # 36 nodes for angular control.
@@ -52,8 +173,6 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         # Hexagulation: Stagger alternate rows for hexagonal approximation.
         for i in range(1, v_num, 2):
             U[i, :] += np.pi / u_num / 2  # Stagger by half step.
-
-    U, V = np.meshgrid(u, v)
 
     # Flower profile with 6 petals.
     petal_amp = amplitude * (1 - V)  # Taper for smaller petals at outer ends (V=1).
@@ -155,17 +274,17 @@ for label, vmin, vmax, vinit in slider_params:
     sliders.append(slider)
     y_pos -= 0.03
 
-# Hex mode toggle using CheckButtons to avoid mouse grab error.
+# Hex mode toggle using CheckButtons to avoid mouse grab error and allow toggling back.
 ax_hex = plt.axes([0.1, 0.01, 0.15, 0.03])
 check = CheckButtons(ax_hex, ['Hex Mode'], [False])
 
-hex_mode = False
 def toggle_hex(label):
     global hex_mode
-    hex_mode = not hex_mode
+    hex_mode = check.get_status()[0]  # Sync with check state for reliable toggle.
     update(None)
 
 check.on_clicked(toggle_hex)
+hex_mode = False
 
 def update(val):
     """Update surface based on current slider values."""
