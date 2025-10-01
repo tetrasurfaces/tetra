@@ -27,7 +27,6 @@ import warnings
 from matplotlib import MatplotlibDeprecationWarning
 import struct
 import base64
-from id_util_nurks_surface import custom_interoperations_green_curve
 # Import mpld3 if available for HTML export
 try:
     import mpld3
@@ -35,13 +34,9 @@ try:
 except ImportError:
     print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
-# Assuming kappawise.py exists with compute_kappa_grid function; if not, define a placeholder
-try:
-    from kappawise import compute_kappa_grid
-except ImportError:
-    def compute_kappa_grid(grid_size):
-        # Placeholder: return a dummy 3D array
-        return np.random.rand(grid_size, grid_size, 360) # Example shape
+from temperature_salt import secure_hash_two
+from kappawise import kappa_coord
+from id_util_nurks_surface import custom_interoperations_green_curve
 # Set precision for Decimal
 getcontext().prec = 28
 # Suppress warnings
@@ -200,11 +195,11 @@ show_harmonics = False
 harmonic_texts = []
 annotation_objects = []
 # Pre-compute kappa grid
-kappa_grid = compute_kappa_grid(grid_size=100)
+kappa_grid = np.random.rand(100,100,360)  # Placeholder for 3D kappa grid
 # Fractal Flower Mesh
 def fractal_flower(center, scale, level, all_polygons, rotation_angle=0.0):
     """
-    Recursively generates flower-shaped polygons for the surface.
+    Recursive generates flower-shaped polygons for the surface.
     Collects all base-level flower polygons in all_polygons (list of list of [x,y,z]).
     Uses 36 points for better flower resolution with curved petals.
     Applies rotation to the points.
@@ -217,9 +212,9 @@ def fractal_flower(center, scale, level, all_polygons, rotation_angle=0.0):
     """
     rot_cos = np.cos(rotation_angle)
     rot_sin = np.sin(rotation_angle)
-    num_points = 7 # 6 points + center for hex, but for polygon, 6 verts
-    t = np.linspace(0, 2 * np.pi, num_points)[:-1]  # 6 points for hex
-    r = scale * (radial_chord + tangential_chord * np.sin(6 * t)) # 6 petals, but for hex, simplify
+    num_points = 37 # 36 points for higher resolution
+    t = np.linspace(0, 2 * np.pi, num_points)[:-1]
+    r = scale * (radial_chord + tangential_chord * np.sin(6 * t)) # 6 petals, use sin for symmetry if needed
     dx = r * np.cos(t)
     dy = r * np.sin(t)
     dz = scale * height_chord * np.cos(6 * t) # Curved z for surface
@@ -245,36 +240,12 @@ def fractal_flower(center, scale, level, all_polygons, rotation_angle=0.0):
         tip_z = center[2] + tip_dz
         tip_center = [tip_x, tip_y, tip_z]
         fractal_flower(tip_center, small_scale, level - 1, all_polygons, rotation_angle + np.pi)
-# Adaptive tesselation for v-angulations
-def adaptive_tesselate_poly(poly, curvature):
-    """
-    Adaptive tesselation based on curvature.
-    - Low curvature: Keep as n-gon (e.g., hex for 6 verts, quad for 4).
-    - Medium: Split to quads or diamonds/parallelograms.
-    - High: Triangulate.
-    Returns list of faces (each a list of vert indices).
-    """
-    n_verts = len(poly)
-    faces = []
-    if curvature < 0.1:  # Low: keep as single n-gon (hex, quad, etc.)
-        if n_verts in (3,4,6):  # Supported v-angulations: tri, quad, hex
-            faces.append(list(range(n_verts)))
-        else:
-            # Fallback to fan for unsupported
-            for i in range(1, n_verts - 1):
-                faces.append([0, i, i+1])
-    elif 0.1 <= curvature < 0.5:  # Medium: split to quads (e.g., for rect/rhombus/trapezium/parallelogram)
-        if n_verts % 4 == 0:
-            for i in range(0, n_verts, 4):
-                faces.append([i, i+1, i+2, i+3])  # Quad splits
-        else:
-            # Fallback to fan tris
-            for i in range(1, n_verts - 1):
-                faces.append([0, i, i+1])
-    else:  # High: triangulate (fan for tris, or V-shapes/tetra if 3D, but here flat poly)
-        for i in range(1, n_verts - 1):
-            faces.append([0, i, i+1])
-    return faces
+# Triangulate polygon for rendering (fan triangulation)
+def triangulate_poly(poly):
+    tris = []
+    for i in range(1, len(poly) - 1):
+        tris.append([poly[0], poly[i], poly[i+1]])
+    return tris
 # Hash entropy for lower surface
 def hash_entropy(p):
     h_str = f"{p[0]:.6f}{p[1]:.6f}{p[2]:.6f}"
@@ -294,7 +265,7 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
         fractal_level: Recursion level for fractal flower.
     Returns:
         vertices (np.array): Array of [x, y, z].
-        faces (list): List of [idx1, idx2, idx3, ...] (n-gons for mixed v-angulations).
+        faces (list): List of [idx1, idx2, idx3].
     """
     if num_points is not None:
         indices = np.linspace(0, len(x_curve) - 1, num_points, dtype=int)
@@ -370,22 +341,22 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
             vertices.append([x, y, z])
     center_lower_idx = len(vertices)
     vertices.append([center_x, center_y, -height / 2])
-    # Faces for upper surface (use quads, which are a type of diamond/parallelogram)
+    # Faces for upper surface
     for ll in range(len(upper_bases) - 1):
         base = upper_bases[ll]
         next_base = upper_bases[ll + 1]
         for i in range(n):
             next_i = (i + 1) % n
-            # Add quad face (parallelogram)
-            faces.append([base + i, base + next_i, next_base + next_i, next_base + i])
-    # Faces for lower surface (similar quads)
+            faces.append([base + i, base + next_i, next_base + next_i])
+            faces.append([base + i, next_base + next_i, next_base + i])
+    # Faces for lower surface
     for ll in range(len(lower_bases) - 1):
         base = lower_bases[ll]
         next_base = lower_bases[ll + 1]
         for i in range(n):
             next_i = (i + 1) % n
-            # Add quad face
-            faces.append([base + i, base + next_i, next_base + next_i, next_base + i])
+            faces.append([base + i, next_base + i, next_base + next_i])
+            faces.append([base + i, next_base + next_i, base + next_i])
     # Integrate fractal flower for caps (no fan, use flower fractals)
     # Compute curve length for scale
     curve_length = np.sum(np.sqrt(np.diff(x_curve)**2 + np.diff(y_curve)**2))
@@ -395,15 +366,12 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
     fractal_flower(vertices[center_upper_idx], flower_scale, fractal_level, all_polygons, rotation_angle=np.pi)
     # Lower cap flower
     fractal_flower(vertices[center_lower_idx], flower_scale, fractal_level, all_polygons, rotation_angle=np.pi)
-    # Add polygons to mesh (adaptive tesselate for mixed v-angulations)
+    # Add polygons to mesh (triangulate for rendering)
     for poly in all_polygons:
         base_idx = len(vertices)
         vertices.extend(poly)
-        # Mock curvature (replace with actual, e.g., from kappa_slice or z variance)
-        curvature = np.std([p[2] for p in poly])  # Simple z-variance as curvature proxy
-        poly_faces = adaptive_tesselate_poly(np.arange(len(poly)), curvature)  # Get relative indices
-        for f in poly_faces:
-            faces.append([base_idx + idx for idx in f])
+        for tri in triangulate_poly(range(len(poly))):
+            faces.append([base_idx + tri[0], base_idx + tri[1], base_idx + tri[2]])
     # Convert to numpy array
     vertices = np.array(vertices)
     # Snap to integers if hash ends with 0
@@ -426,7 +394,7 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
     vertices[:, 0] += kappa_mod * 0.05 * np.sin(2 * np.pi * vertices[:, 2] / height) # Compound in x
     vertices[:, 1] += kappa_mod * 0.05 * np.cos(2 * np.pi * vertices[:, 2] / height) # Compound in y
     # Make flowers sacrificial: remove flower faces after modulation (assume last added are flowers)
-    flower_face_start = len(faces) - len(all_polygons) * (len(all_polygons[0]) - 2)  # Approx for tesselated faces
+    flower_face_start = len(faces) - len(all_polygons) * 35 # Adjusted for 36 points per flower (approx 35 triangles)
     faces = faces[:flower_face_start]
     return vertices, faces
 # NURBS basis function
@@ -479,22 +447,22 @@ def bspline_basis(u, i, p, knots):
         if i < 0 or i + 1 >= len(knots):
             return 0.0
         return 1.0 if knots[i] <= u <= knots[i + 1] else 0.0
-   
+ 
     if i < 0 or i >= len(knots) - 1:
         return 0.0
-   
+ 
     term1 = 0.0
     if i + p < len(knots):
         den1 = knots[i + p] - knots[i]
         if den1 > 0:
             term1 = ((u - knots[i]) / den1) * bspline_basis(u, i, p - 1, knots)
-   
+ 
     term2 = 0.0
     if i + p + 1 < len(knots):
         den2 = knots[i + p + 1] - knots[i + 1]
         if den2 > 0:
             term2 = ((knots[i + p + 1] - u) / den2) * bspline_basis(u, i + 1, p - 1, knots)
-   
+ 
     return term1 + term2
 def bspline_basis_periodic(u, i, p, knots, n):
     i = i % n
@@ -505,7 +473,7 @@ def bspline_basis_periodic(u, i, p, knots, n):
             return 1.0 if u >= k0 or u < k1 else 0.0
         else:
             return 1.0 if k0 <= u < k1 else 0.0
-   
+ 
     k_i = knots[i % len(knots)]
     k_ip = knots[(i + p) % len(knots)]
     den1 = k_ip - k_i
@@ -514,7 +482,7 @@ def bspline_basis_periodic(u, i, p, knots, n):
     term1 = 0.0
     if den1 > 0:
         term1 = ((u - k_i) / den1) * bspline_basis_periodic(u, i, p - 1, knots, n)
-   
+ 
     k_i1 = knots[(i + 1) % len(knots)]
     k_ip1 = knots[(i + p + 1) % len(knots)]
     den2 = k_ip1 - k_i1
@@ -523,7 +491,7 @@ def bspline_basis_periodic(u, i, p, knots, n):
     term2 = 0.0
     if den2 > 0:
         term2 = ((k_ip1 - u) / den2) * bspline_basis_periodic(u, i + 1, p - 1, knots, n)
-   
+ 
     return term1 + term2
 # Custom interoperations for greencurve using NURBS with local kappa adjustment for closure
 def custom_interoperations_green_curve(points, kappas, is_closed=False):
@@ -1185,23 +1153,15 @@ def compute_normal(v1, v2, v3):
     normal = np.cross(vec1, vec2)
     norm = np.linalg.norm(normal)
     return normal / norm if norm != 0 else normal
-# Export current model to STL (triangulate n-gons for STL)
+# Export current model to STL
 def export_stl():
     global current_vertices, current_faces
     if current_vertices is None or current_faces is None:
         print("No model to export")
         return
-    tri_faces = []
-    for f in current_faces:
-        if len(f) == 3:
-            tri_faces.append(f)
-        else:
-            # Fan triangulate n-gon for STL
-            for i in range(1, len(f) - 1):
-                tri_faces.append([f[0], f[i], f[i+1]])
     stl_data = b'\x00' * 80 # Header
-    stl_data += struct.pack('<I', len(tri_faces)) # Number of triangles
-    for face in tri_faces:
+    stl_data += struct.pack('<I', len(current_faces)) # Number of triangles
+    for face in current_faces:
         v1 = current_vertices[face[0]]
         v2 = current_vertices[face[1]]
         v3 = current_vertices[face[2]]
