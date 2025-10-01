@@ -23,12 +23,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import hashlib
 import struct
 
-def kappa_sha256(data, kappa):
-    # Custom KappaSHA-256: Pack kappa into data and hash with SHA-256.
-    # Placeholder since original script not fetched; modulates with kappa as key.
-    kappa_packed = struct.pack('f', kappa)  # Pack kappa as float.
-    keyed_data = kappa_packed + data.encode('utf-8') if isinstance(data, str) else kappa_packed + data
-    return hashlib.sha256(keyed_data).hexdigest()
+
 
 def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, hex_mode=False):
     # Generate parametric surface points and mesh.
