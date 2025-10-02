@@ -30,9 +30,9 @@ from id_util_nurks_closure_hex import custom_interoperations_green_curve
 from ribit import ribit_generate
 from knots_rops import Knot, Rope, knots_rops_sequence
 from left_weighted_scale import left_weighted_scale
-from tetras import fractal_tetra, build_mesh # For Sierpinski tetrahedron (mail mesh)
+from tetras import build_mesh, fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
 
-def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, hex_mode=False):
+def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, morph=0.0, hex_mode=False):
     """Generate parametric NURKS surface points (X, Y, Z) and copyright hash ID using kappasha256."""
     # 36 nodes for angular control.
     u_num = 36
@@ -51,10 +51,9 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
     sin_variation = np.sin(6 * U + twist)
     num_coarse = 36
     if hex_mode:
-        # Use ribit state to morph profile: 0 flower (36), 1 hex (6), 2 circular (0 sin).
-        param_str = f"{ns_diam},{sw_ne_diam},{nw_se_diam},{twist},{amplitude},{radii},{kappa},{height},{inflection},{hex_mode}"
-        ribit_int, state, color = ribit_generate(param_str)
-        morph_mode = state % 3  # 0: flower, 1: hex, 2: circular
+        # Use morph to morph profile: 0 flower, 1 hex, 2 circular.
+        morph_mode = int(morph)
+        num_coarse = 36
         if morph_mode == 0:
             num_coarse = 36
         elif morph_mode == 1:
@@ -74,9 +73,6 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         smooth_sin = smooth_sin[:-1]
         theta_fine = smooth_theta[:-1]
         sin_variation = np.interp(U % (2 * np.pi), theta_fine, smooth_sin)
-        if state > 3:  # Inversion to honeycomb
-            amplitude = -amplitude  # Concave inversion
-        petal_amp = amplitude * (1 - V)
     R = radii + petal_amp * sin_variation
     # Deform with diameters (elliptical/radial influence).
     # NS scales y, SW/NE and NW/SE scale diagonals.
@@ -92,7 +88,7 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
     X += curve_factor * np.sin(np.pi * V) * np.cos(U + np.pi/4) # Curve in SW/NE.
     Y += curve_factor * np.sin(np.pi * V) * np.sin(U + np.pi/4) # Curve in NW/SE.
     # Hash parameters for copyright ID using kappasha256 (key modulated by kappa).
-    param_str = f"{ns_diam},{sw_ne_diam},{nw_se_diam},{twist},{amplitude},{radii},{kappa},{height},{inflection},{hex_mode}"
+    param_str = f"{ns_diam},{sw_ne_diam},{nw_se_diam},{twist},{amplitude},{radii},{kappa},{height},{inflection},{morph},{hex_mode}"
     if hex_mode:
         param_str += ',bspline_degree=3,bspline_coarse=36'
     key = hashlib.sha256(struct.pack('f', kappa)).digest() * 2 # 64-byte key from kappa.
@@ -145,7 +141,7 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         Y_cap = None
         Z_cap = None
     # Hash parameters for copyright ID using kappasha256 (key modulated by kappa).
-    param_str = f"{ns_diam},{sw_ne_diam},{nw_se_diam},{twist},{amplitude},{radii},{kappa},{height},{inflection},{hex_mode}"
+    param_str = f"{ns_diam},{sw_ne_diam},{nw_se_diam},{twist},{amplitude},{radii},{kappa},{height},{inflection},{morph},{hex_mode}"
     if hex_mode:
         param_str += f',bspline_degree=3,bspline_coarse=36,ribit_state={state},kappa_cap={kappa_cap},mini_factor={mini_factor}'
     key = hashlib.sha256(struct.pack('f', kappa)).digest() * 2 # 64-byte key from kappa.
@@ -218,7 +214,8 @@ slider_params = [
     ('Radii', 0.5, 2.0, 1.0),
     ('Kappa', 0.1, 5.0, 1.0),
     ('Height', 0.5, 2.0, 1.0),
-    ('Inflection', 0.0, 1.0, 0.5)
+    ('Inflection', 0.0, 1.0, 0.5),
+    ('Morph', 0.0, 2.0, 0.0)  # Add morph slider
 ]
 sliders = []
 y_pos = 0.25
@@ -239,7 +236,7 @@ def toggle_hex(event):
 btn_hex.on_clicked(toggle_hex)
 def update(val):
     """Update surface based on current slider values."""
-    params = [s.val for s in sliders] + [hex_mode]
+    params = [s.val for s in sliders[:-1]] + [sliders[-1].val, hex_mode]  # Morph is last slider
     X, Y, Z, surface_id, X_cap, Y_cap, Z_cap = generate_nurks_surface(*params)
     global surf, surf_cap
     surf.remove()
@@ -258,8 +255,11 @@ for s in sliders:
 # Export button.
 ax_export = plt.axes([0.8, 0.05, 0.1, 0.075])
 btn_export = Button(ax_export, 'Export STL')
+u_num = 36
+v_num = 20
+v_num_cap = 10
 def on_export(event):
-    params = [s.val for s in sliders] + [hex_mode]
+    params = [s.val for s in sliders[:-1]] + [sliders[-1].val, hex_mode]  # Morph is last slider
     X, Y, Z, surface_id, X_cap, Y_cap, Z_cap = generate_nurks_surface(*params)
     triangles_main = tessellate_mesh(X, Y, Z, u_num, v_num)
     triangles = triangles_main
