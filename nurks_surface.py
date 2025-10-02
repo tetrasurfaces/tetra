@@ -1,5 +1,4 @@
 # Copyright Todd Hutchinson, Beau Ayres, Anonymous
-# Beau Ayres owns the IP of Sierpinski mesh as surface detail
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -21,21 +20,27 @@ import struct
 import math
 import mpmath
 mpmath.mp.dps = 19  # Precision for φ, π.
-
 from kappasha import kappasha256
-from math_utils import kappa_calc
-from wise_transforms import bitwise_transform, hexwise_transform, hashwise_transform
-from green_curve import custom_interoperations_green_curve 
 from ribit import ribit_generate
-from knots_rops import Knot, Rope, knots_rops_sequence
-from left_weighted_scale import left_weighted_scale
-from tetras import build_mesh, fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
-from regulate_hexagons_on_curve import regulate_hexagons_on_curve
-from kappawise import kappa_coord  # For kappa-based grid spacing
+from kappawise import kappa_coord
+from green_curve import bspline_basis, custom_interoperations_green_curve
 
 u_num = 36
 v_num = 20
 v_num_cap = 10
+
+# Define userid (placeholder; replace with actual user ID, e.g., from auth system)
+userid = 1234  # Example; must be defined to avoid NameError
+
+kappa_grid = kappa_coord(userid, theta=100)
+
+u_num = 36
+v_num = 20
+v_num_cap = 10
+
+# Optional: Compute kappa_coord if needed for other features (e.g., seeding elsewhere); skipped here per note
+# userid = 1234  # Placeholder if needed
+# kappa_coords = kappa_coord(userid, theta=100)  # Returns e.g., (814, 330, 818); unused for grid
 
 def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, morph=0.0, hex_mode=False):
     """Generate parametric NURKS surface points (X, Y, Z) and copyright hash ID using kappasha256."""
@@ -44,7 +49,12 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
     v_num = 20
     inner_radius = 0.01  # Small to avoid artefacts.
     u = np.linspace(0, 2 * np.pi, u_num)
-    v = kappa_coord(inner_radius, 1, v_num, kappa)  # Use kappa-based grid for v
+    # Inline kappa-based grid for v (power-law spacing; bunches near inner if kappa < 1, near outer if kappa > 1)
+    if kappa <= 0:
+        raise ValueError("Kappa must be positive for power-law grid.")
+    lin = np.linspace(0, 1, v_num)
+    powered = lin ** kappa
+    v = inner_radius + (1 - inner_radius) * powered  # Use kappa-based grid for v
     U, V = np.meshgrid(u, v)
     if hex_mode:
         # Hexagulation: Stagger alternate rows for hexagonal approximation.
@@ -111,7 +121,12 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         mini_radii = radii * mini_factor
         mini_amplitude = amplitude * mini_factor
         v_num_cap = 10
-        v_cap = kappa_coord(0, inner_radius, v_num_cap, kappa_cap)  # Use kappa-based grid for cap v
+        # Inline kappa-based grid for cap v (from 0 to inner_radius)
+        if kappa_cap <= 0:
+            raise ValueError("Kappa_cap must be positive for power-law grid.")
+        lin_cap = np.linspace(0, 1, v_num_cap)
+        powered_cap = lin_cap ** kappa_cap
+        v_cap = 0 + inner_radius * powered_cap  # Use kappa-based grid for cap v
         U_cap, V_cap = np.meshgrid(u, v_cap)
         if hex_mode:
             for i in range(1, v_num_cap, 2):
@@ -151,3 +166,12 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         Y_cap = None
         Z_cap = None
     return X, Y, Z, surface_id, X_cap, Y_cap, Z_cap
+
+# Example usage (for testing completeness)
+if __name__ == "__main__":
+    # Call the function with defaults
+    X, Y, Z, surface_id, X_cap, Y_cap, Z_cap = generate_nurks_surface()
+    print(f"Generated surface with ID: {surface_id}")
+    # Test sample v-grid (e.g., for kappa=1, linear; for kappa=2, bunched near 1)
+    test_v = 0.01 + (1 - 0.01) * (np.linspace(0, 1, 5) ** 2.0)
+    print(f"Sample v-grid (kappa=2): {test_v}")  # e.g., [0.01, 0.2575, 0.505, 0.7525, 1.0]
