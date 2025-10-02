@@ -44,7 +44,7 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
     v_num = 20
     inner_radius = 0.01  # Small to avoid artefacts.
     u = np.linspace(0, 2 * np.pi, u_num)
-    v = kappa_grid(inner_radius, 1, v_num, kappa)  # Use kappa-based grid for v
+    v = kappa_coord(inner_radius, 1, v_num, kappa)  # Use kappa-based grid for v
     U, V = np.meshgrid(u, v)
     if hex_mode:
         # Hexagulation: Stagger alternate rows for hexagonal approximation.
@@ -111,7 +111,7 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         mini_radii = radii * mini_factor
         mini_amplitude = amplitude * mini_factor
         v_num_cap = 10
-        v_cap = kappa_grid(0, inner_radius, v_num_cap, kappa_cap)  # Use kappa-based grid for cap v
+        v_cap = kappa_coord(0, inner_radius, v_num_cap, kappa_cap)  # Use kappa-based grid for cap v
         U_cap, V_cap = np.meshgrid(u, v_cap)
         if hex_mode:
             for i in range(1, v_num_cap, 2):
