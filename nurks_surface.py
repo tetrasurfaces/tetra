@@ -30,7 +30,7 @@ from id_util_nurks_closure_hex import custom_interoperations_green_curve
 from ribit import ribit_generate
 from knots_rops import Knot, Rope, knots_rops_sequence
 from left_weighted_scale import left_weighted_scale
-from tetras import fractal_tetra, build_mesh  # From tetras.py for mail mesh
+from tetras import fractal_tetra, build_mesh # For Sierpinski tetrahedron (mail mesh)
 
 def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, hex_mode=False):
     """Generate parametric NURKS surface points (X, Y, Z) and copyright hash ID using kappasha256."""
@@ -49,17 +49,34 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
     petal_amp = amplitude * (1 - V) # Taper for smaller petals at outer ends (V=1).
     # Compute the base sin variation.
     sin_variation = np.sin(6 * U + twist)
+    num_coarse = 36
     if hex_mode:
-        # Use bspline to smooth the r_base when hex_mode is on.
-        num_coarse = 36
+        # Use ribit state to morph profile: 0 flower (36), 1 hex (6), 2 circular (0 sin).
+        param_str = f"{ns_diam},{sw_ne_diam},{nw_se_diam},{twist},{amplitude},{radii},{kappa},{height},{inflection},{hex_mode}"
+        ribit_int, state, color = ribit_generate(param_str)
+        morph_mode = state % 3  # 0: flower, 1: hex, 2: circular
+        if morph_mode == 0:
+            num_coarse = 36
+        elif morph_mode == 1:
+            num_coarse = 6
+        else:
+            num_coarse = 100  # High for circular approximation
         theta_coarse = np.linspace(0, 2 * np.pi, num_coarse, endpoint=False)
-        sin_coarse = np.sin(6 * theta_coarse + twist)
+        if morph_mode == 1:
+            sin_coarse = np.sin(3 * theta_coarse + twist)  # For hex-like (3 petals doubled)
+        elif morph_mode == 2:
+            sin_coarse = np.zeros(num_coarse)  # No sin for circular
+        else:
+            sin_coarse = np.sin(6 * theta_coarse + twist)  # Flower
         points = list(zip(theta_coarse, sin_coarse))
         kappas = [1.0] * num_coarse
         smooth_theta, smooth_sin = custom_interoperations_green_curve(points, kappas, is_closed=True)
         smooth_sin = smooth_sin[:-1]
         theta_fine = smooth_theta[:-1]
         sin_variation = np.interp(U % (2 * np.pi), theta_fine, smooth_sin)
+        if state > 3:  # Inversion to honeycomb
+            amplitude = -amplitude  # Concave inversion
+        petal_amp = amplitude * (1 - V)
     R = radii + petal_amp * sin_variation
     # Deform with diameters (elliptical/radial influence).
     # NS scales y, SW/NE and NW/SE scale diagonals.
