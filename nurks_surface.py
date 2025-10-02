@@ -25,43 +25,18 @@ import math
 import mpmath
 mpmath.mp.dps = 19  # Precision for φ, π.
 from kappasha import kappasha256
+from math_utils import kappa_calc
 from wise_transforms import bitwise_transform, hexwise_transform, hashwise_transform
 from id_util_nurks_closure_hex import custom_interoperations_green_curve
 from ribit import ribit_generate
 from knots_rops import Knot, Rope, knots_rops_sequence
 from left_weighted_scale import left_weighted_scale
-from tetras import fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
+from tetras import build_mesh, fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
+from regulate_hexagons_on_curve import regulate_hexagons_on_curve
 
 u_num = 36
 v_num = 20
 v_num_cap = 10
-
-def build_mesh(x_curve, y_curve, num_points, fractal_level=3):
-    # From tetras.py, assuming it's copied or imported.
-    # Compute curve length for scale
-    curve_length = np.sum(np.sqrt(np.diff(x_curve)**2 + np.diff(y_curve)**2))
-    scale = curve_length if curve_length > 0 else 1.0
-   
-    # Initial regular tetrahedron vertices
-    orig = np.array([
-        [0, 0, 0],
-        [1, 0, 0],
-        [0.5, np.sqrt(3)/2, 0],
-        [0.5, np.sqrt(3)/6, np.sqrt(6)/3]
-    ]) * scale
-   
-    all_triangles = [] # List of [[x1,y1,z1], [x2,y2,z2], [x3,y3,z3]]
-    fractal_tetra(orig.tolist(), fractal_level, all_triangles)
-   
-    # Flatten to global vertices and faces
-    vertices = []
-    faces = []
-    for tri in all_triangles:
-        base_idx = len(vertices)
-        vertices.extend(tri)
-        faces.append([base_idx, base_idx+1, base_idx+2])
-   
-    return vertices, faces
 
 def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, morph=0.0, hex_mode=False):
     """Generate parametric NURKS surface points (X, Y, Z) and copyright hash ID using kappasha256."""
@@ -142,7 +117,7 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         if hex_mode:
             for i in range(1, v_num_cap, 2):
                 U_cap[i, :] += np.pi / u_num / 2 # Stagger cap too for honeycomb.
-        # For cap profile, use 7 points B-spline.
+        # For cap profile, use 7 points K-spline.
         num_coarse_cap = 7
         theta_coarse_cap = np.linspace(0, 2 * np.pi, num_coarse_cap, endpoint=False)
         sin_coarse_cap = np.sin(6 * theta_coarse_cap + twist_cap)
@@ -246,7 +221,7 @@ slider_params = [
     ('Kappa', 0.1, 5.0, 1.0),
     ('Height', 0.5, 2.0, 1.0),
     ('Inflection', 0.0, 1.0, 0.5),
-    ('Morph', 0.0, 2.0, 0.0)  # Add morph slider
+    ('Morph', 0.0, 2.0, 0.0) # Add morph slider
 ]
 sliders = []
 y_pos = 0.25
@@ -267,7 +242,7 @@ def toggle_hex(event):
 btn_hex.on_clicked(toggle_hex)
 def update(val):
     """Update surface based on current slider values."""
-    params = [s.val for s in sliders[:-1]] + [sliders[-1].val, hex_mode]  # Morph is last slider
+    params = [s.val for s in sliders[:-1]] + [sliders[-1].val, hex_mode] # Morph is last slider
     X, Y, Z, surface_id, X_cap, Y_cap, Z_cap = generate_nurks_surface(*params)
     global surf, surf_cap
     surf.remove()
@@ -290,7 +265,7 @@ u_num = 36
 v_num = 20
 v_num_cap = 10
 def on_export(event):
-    params = [s.val for s in sliders[:-1]] + [sliders[-1].val, hex_mode]  # Morph is last slider
+    params = [s.val for s in sliders[:-1]] + [sliders[-1].val, hex_mode] # Morph is last slider
     X, Y, Z, surface_id, X_cap, Y_cap, Z_cap = generate_nurks_surface(*params)
     triangles_main = tessellate_mesh(X, Y, Z, u_num, v_num)
     triangles = triangles_main
