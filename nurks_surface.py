@@ -24,15 +24,13 @@ import struct
 import math
 import mpmath
 mpmath.mp.dps = 19  # Precision for φ, π.
-from kappasha import kappasha256
-from math_utils import kappa_calc
+from kappasha import kappasha256, kappa_calc
 from wise_transforms import bitwise_transform, hexwise_transform, hashwise_transform
 from id_util_nurks_closure_hex import custom_interoperations_green_curve
 from ribit import ribit_generate
 from knots_rops import Knot, Rope, knots_rops_sequence
 from left_weighted_scale import left_weighted_scale
 from tetras import build_mesh, fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
-from regulate_hexagons_on_curve import regulate_hexagons_on_curve
 
 u_num = 36
 v_num = 20
@@ -65,14 +63,14 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         elif morph_mode == 1:
             num_coarse = 6
         else:
-            num_coarse = 100  # High for circular approximation
+            num_coarse = 100 # High for circular approximation
         theta_coarse = np.linspace(0, 2 * np.pi, num_coarse, endpoint=False)
         if morph_mode == 1:
-            sin_coarse = np.sin(3 * theta_coarse + twist)  # For hex-like (3 petals doubled)
+            sin_coarse = np.sin(3 * theta_coarse + twist) # For hex-like (3 petals doubled)
         elif morph_mode == 2:
-            sin_coarse = np.zeros(num_coarse)  # No sin for circular
+            sin_coarse = np.zeros(num_coarse) # No sin for circular
         else:
-            sin_coarse = np.sin(6 * theta_coarse + twist)  # Flower
+            sin_coarse = np.sin(6 * theta_coarse + twist) # Flower
         points = list(zip(theta_coarse, sin_coarse))
         kappas = [1.0] * num_coarse
         smooth_theta, smooth_sin = custom_interoperations_green_curve(points, kappas, is_closed=True)
