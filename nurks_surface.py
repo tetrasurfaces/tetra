@@ -129,7 +129,7 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         petal_amp_main_inner = amplitude * (1 - inner_radius)
         sin_variation_main = sin_variation[0, :]  # Angular at boundary
         R_main_inner = radii + petal_amp_main_inner * sin_variation_main
-        R_cap = R_cap_base + (R_main_inner - R_cap_base) * (V_cap[:, none] / inner_radius)
+        R_cap = R_cap_base + (R_main_inner - R_cap_base) * (V_cap[:, None] / inner_radius)
         # Deform cap with same scales.
         X_cap = R_cap * V_cap[:, None] * np.cos(U_cap) * scale_x
         Y_cap = R_cap * V_cap[:, None] * np.sin(U_cap) * scale_y
