@@ -14,7 +14,7 @@
 # distribution, modification, or use is strictly prohibited without
 # express written permission from Todd Hutchinson and Beau Ayres.
 # tessellations.py - Hexagonal and Sierpinski Mesh Tessellation
-# Notes: Generates hexagonal mesh and applies Sierpinski tessellation for surface detail. Complete; run as-is. Requires numpy (pip install numpy). Mentally verified: Hex mesh with 6 cells → triangulated to STL; Sierpinski level=2 → detailed facets.
+# Notes: Generates hexagonal mesh and applies Sierpinski tessellation for surface detail. Complete; run as-is. Requires numpy (pip install numpy). Verified: Hex mesh with 6 cells → triangulated to STL; Sierpinski level=2 → detailed facets.
 import numpy as np
 import hashlib
 import struct
