@@ -23,6 +23,7 @@ from matplotlib.widgets import Slider, Button
 from tetras import fractal_tetra
 from scipy.spatial import Voronoi, Delaunay  # For Voronoi diagram
 from kappasha import kappasha256
+from ribit import ribit_generate
 from regulate_hexagons_on_curve import regulate_hexagons_on_curve
 
 def tessellate_hex_mesh(X, Y, Z, u_num, v_num, param_str, is_cap=False):
