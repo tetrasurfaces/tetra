@@ -1,4 +1,5 @@
-# Copyright 2025 Todd Hutchinson, Anonymous
+# Copyright Todd Hutchinson, Beau Ayres, Anonymous
+# Beau Ayres owns the IP of Sierpinski mesh as surface detail
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -10,11 +11,10 @@
 # limitations under the License.
 # Proprietary Software - All Rights Reserved
 #
-# Copyright (C) 2025 Todd Hutchinson
-#
 # This software is proprietary and confidential. Unauthorized copying,
 # distribution, modification, or use is strictly prohibited without
-# express written permission from Todd Hutchinson.
+# express written permission from Todd Hutchinson and Beau Ayres.
+
 import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
@@ -33,7 +33,8 @@ from knots_rops import Knot, Rope, knots_rops_sequence
 from left_weighted_scale import left_weighted_scale
 from tetras import build_mesh, fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
 from regulate_hexagons_on_curve import regulate_hexagons_on_curve
-from scipy.spatial import Voronoi, Delaunay  # For Voronoi hex integration
+from scipy.spatial import Voronoi, Delaunay # For Voronoi hex integration
+from tessellations import tessellate_hex_mesh, build_mail
 
 u_num = 36
 v_num = 20
@@ -132,7 +133,7 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         petal_amp_main_inner = amplitude * (1 - inner_radius)
         sin_variation_main = sin_variation[0, :] # Angular at boundary
         R_main_inner = radii + petal_amp_main_inner * sin_variation_main
-        R_cap = R_cap_base + (R_main_inner - R_cap_base) * (V_cap[:, None] / inner_radius)
+        R_cap = R_cap_base + (R_main_inner - R_cap_base) * (V_cap[:, none] / inner_radius)
         # Deform cap with same scales.
         X_cap = R_cap * V_cap * np.cos(U_cap) * scale_x
         Y_cap = R_cap * V_cap * np.sin(U_cap) * scale_y
