@@ -42,23 +42,31 @@ def bspline_basis(u, i, p, knots):
     return term1 + term2
 
 def custom_interoperations_green_curve(points, kappas, is_closed=False):
+    """Generate smoothed curve using B-spline interpolation.
+    Args:
+        points: List of [x, y] points to smooth.
+        kappas: List of weights for each point.
+        is_closed: If True, treat as closed curve (periodic); else open (clamped).
+    Returns:
+        smooth_x, smooth_y: Arrays of smoothed x and y coordinates.
+    """
     points = np.array(points)
     kappas = np.array(kappas)
     degree = 3
     num_output_points = 1000
-   
+    
     if is_closed and len(points) > degree:
         n = len(points)
         extended_points = np.concatenate((points[n-degree:], points, points[0:degree]))
         extended_kappas = np.concatenate((kappas[n-degree:], kappas, kappas[0:degree]))
         len_extended = len(extended_points)
         knots = np.linspace(-degree / float(n), 1 + degree / float(n), len_extended + 1)
-   
+        
         u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
-   
+        
         smooth_x = np.zeros(num_output_points)
         smooth_y = np.zeros(num_output_points)
-   
+        
         for j, u in enumerate(u_fine):
             num_x, num_y, den = 0.0, 0.0, 0.0
             for i in range(len_extended):
@@ -70,10 +78,31 @@ def custom_interoperations_green_curve(points, kappas, is_closed=False):
             if den > 0:
                 smooth_x[j] = num_x / den
                 smooth_y[j] = num_y / den
-   
+        
         smooth_x = np.append(smooth_x, smooth_x[0])
         smooth_y = np.append(smooth_y, smooth_y[0])
-   
+        
+    else:  # Open (clamped) B-spline
+        n = len(points)
+        knots = np.concatenate(([0] * (degree + 1), np.linspace(0, 1, n - degree + 1)[1:-1], [1] * (degree + 1)))
+        
+        u_fine = np.linspace(0, 1, num_output_points)
+        
+        smooth_x = np.zeros(num_output_points)
+        smooth_y = np.zeros(num_output_points)
+        
+        for j, u in enumerate(u_fine):
+            num_x, num_y, den = 0.0, 0.0, 0.0
+            for i in range(n):
+                b = bspline_basis(u, i, degree, knots)
+                w = kappas[i] * b
+                num_x += w * points[i, 0]
+                num_y += w * points[i, 1]
+                den += w
+            if den > 0:
+                smooth_x[j] = num_x / den
+                smooth_y[j] = num_y / den
+    
     return smooth_x, smooth_y
 
 # Test with flower shape - increase num_u
