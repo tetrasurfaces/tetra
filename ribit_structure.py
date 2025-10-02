@@ -15,125 +15,42 @@
 # This software is proprietary and confidential. Unauthorized copying,
 # distribution, modification, or use is strictly prohibited without
 # express written permission from Todd Hutchinson.
-
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
+import hashlib
+import math
+import mpmath
+mpmath.mp.dps = 19
+from wise_transforms import hashwise_transform, hexwise_transform
+from kappawise import murmur32, kappa_coord
+from wise_transforms import bitwise_transform, hexwise_transform, hashwise_transform
+from id_util_nurks_closure_hex import custom_interoperations_green_curve, bspline_basis
 
-# B-spline basis function (helper for green curve)
-def bspline_basis(u, i, p, knots):
-    if p == 0:
-        if i < 0 or i + 1 >= len(knots):
-            return 0.0
-        return 1.0 if knots[i] <= u <= knots[i + 1] else 0.0
-    
-    if i < 0 or i >= len(knots) - 1:
-        return 0.0
-    
-    term1 = 0.0
-    if i + p < len(knots):
-        den1 = knots[i + p] - knots[i]
-        if den1 > 0:
-            term1 = ((u - knots[i]) / den1) * bspline_basis(u, i, p - 1, knots)
-    
-    term2 = 0.0
-    if i + p + 1 < len(knots):
-        den2 = knots[i + p + 1] - knots[i + 1]
-        if den2 > 0:
-            term2 = ((knots[i + p + 1] - u) / den2) * bspline_basis(u, i + 1, p - 1, knots)
-    
-    return term1 + term2
-
-# Custom interoperations green curve function (B-spline smoothing, supports open/closed)
-def custom_interoperations_green_curve(points, kappas, is_closed=False):
-    """Generate smoothed curve using B-spline interpolation.
-
-    Args:
-        points: List of [x, y] points to smooth.
-        kappas: List of weights for each point.
-        is_closed: If True, treat as closed curve (periodic); else open (clamped).
-
-    Returns:
-        smooth_x, smooth_y: Arrays of smoothed x and y coordinates.
-    """
-    points = np.array(points)
-    kappas = np.array(kappas)
-    degree = 3
-    num_output_points = 1000
-    
-    if is_closed and len(points) > degree:
-        n = len(points)
-        extended_points = np.concatenate((points[n-degree:], points, points[0:degree]))
-        extended_kappas = np.concatenate((kappas[n-degree:], kappas, kappas[0:degree]))
-        len_extended = len(extended_points)
-        knots = np.linspace(-degree / float(n), 1 + degree / float(n), len_extended + 1)
-        
-        u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
-        
-        smooth_x = np.zeros(num_output_points)
-        smooth_y = np.zeros(num_output_points)
-        
-        for j, u in enumerate(u_fine):
-            num_x, num_y, den = 0.0, 0.0, 0.0
-            for i in range(len_extended):
-                b = bspline_basis(u, i, degree, knots)
-                w = extended_kappas[i] * b
-                num_x += w * extended_points[i, 0]
-                num_y += w * extended_points[i, 1]
-                den += w
-            if den > 0:
-                smooth_x[j] = num_x / den
-                smooth_y[j] = num_y / den
-        
-        smooth_x = np.append(smooth_x, smooth_x[0])
-        smooth_y = np.append(smooth_y, smooth_y[0])
-        
-    else:  # Open (clamped) B-spline
-        n = len(points)
-        knots = np.concatenate(([0] * (degree + 1), np.linspace(0, 1, n - degree + 1)[1:-1], [1] * (degree + 1)))
-        
-        u_fine = np.linspace(0, 1, num_output_points)
-        
-        smooth_x = np.zeros(num_output_points)
-        smooth_y = np.zeros(num_output_points)
-        
-        for j, u in enumerate(u_fine):
-            num_x, num_y, den = 0.0, 0.0, 0.0
-            for i in range(n):
-                b = bspline_basis(u, i, degree, knots)
-                w = kappas[i] * b
-                num_x += w * points[i, 0]
-                num_y += w * points[i, 1]
-                den += w
-            if den > 0:
-                smooth_x[j] = num_x / den
-                smooth_y[j] = num_y / den
-    
-    return smooth_x, smooth_y
-
-# Points from the image approximation
+# Points from the image approximation (adjusted for symmetry, with one diameter offset for "not in line")
 center = [0, 0]
 colored_points = [
-    [ -0.4, -0.2 ],  # Purple
-    [ -0.3, -0.3 ],  # Indigo
-    [ 0.4, -0.3 ],   # Blue
-    [ 0.5, 0.1 ],    # Cyan
-    [ 0.3, 0.3 ],    # Green
-    [ -0.2, 0.2 ]    # Yellow
+    [ -0.4, -0.2 ], # Orange
+    [ -0.3, -0.3 ], # Yellow
+    [ 0.4, -0.3 ], # Green
+    [ 0.5, 0.1 ], # Blue
+    [ 0.3, 0.3 ], # Indigo
+    [ -0.2, 0.2 ] # Violet
 ]
-colors = ['purple', 'indigo', 'blue', 'cyan', 'green', 'yellow']  # ROYGBIV minus red (center)
+colors = ['orange', 'yellow', 'green', 'blue', 'indigo', 'violet'] # ROYGBIV minus red (center red)
 
 # 3D extension: Extrude along Z with height
 height = 0.5
-num_layers = 50  # For smooth 3D surface
+num_layers = 50 # For smooth 3D surface
 z_levels = np.linspace(0, height, num_layers)
 
-# Generate 3D points using green curve for each arm
+# Generate 3D points using green curve for each arm, with intermediate points for curvature
 arms_3d = []
 for point in colored_points:
-    # Points for arm: center to colored point
-    arm_points = [center, point]
-    kappas = [1.0, 1.0]  # Default weights
+    # Add intermediate point for curvature (midway, offset slightly for curved effect)
+    mid_point = [ (center[0] + point[0]) / 2 + 0.05 * np.random.randn(), (center[1] + point[1]) / 2 + 0.05 * np.random.randn() ]
+    arm_points = [center, mid_point, point]
+    kappas = [1.0, 1.0, 1.0]  # Default weights
     smooth_x, smooth_y = custom_interoperations_green_curve(arm_points, kappas, is_closed=False)  # Open curve for arm
     # Extrude along Z
     arm_3d = np.zeros((len(smooth_x), 3))
@@ -142,7 +59,6 @@ for point in colored_points:
     arms_3d.append(arm_3d)
 
 # Create mesh for 3D ribit structure (simple extrusion for demonstration)
-# For each arm, create a cylindrical extrusion or lofted surface; here, simple points for plot
 fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 
@@ -165,4 +81,4 @@ ax.set_title('3D Ribit Structure with Green Curves')
 
 plt.show()
 
-print("The plot shows a black curve connecting three red points, with a gray parallel curve above it.")
+print("The 3D ribit structure is generated with smoothed green curves for each arm, extruded along Z for depth. The center is at (0,0) with colored points at petal ends.")
