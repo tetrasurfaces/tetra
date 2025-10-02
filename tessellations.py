@@ -20,6 +20,7 @@ import hashlib
 import struct
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
+from scipy.spatial import Voronoi, Delaunay
 from tetras import fractal_tetra
 from kappasha import kappasha256
 def tessellate_hex_mesh(X, Y, Z, u_num, v_num, is_cap=False):
