@@ -156,30 +156,7 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
     surface_id = kappasha256(param_str.encode('utf-8'), key)[0] # hash_hex as ID.
     print(f"Surface Copyright ID: {surface_id}")
     return X, Y, Z, surface_id, X_cap, Y_cap, Z_cap
-def tessellate_mesh(X, Y, Z, u_num, v_num, is_cap=False):
-    triangles = []
-    if is_cap:
-        # Add center point at (0, 0, Z[0,0])
-        center = (0, 0.0, 0.0, Z[0, 0])
-        # Add fan triangles for the first row (i=0)
-        for j in range(u_num):
-            p1 = (j, X[0, j], Y[0, j], Z[0, j])
-            p2 = (j + 1 % u_num, X[0, (j + 1) % u_num], Y[0, (j + 1) % u_num], Z[0, (j + 1) % u_num])
-            triangles.append((center, p1, p2))
-        start_i = 0
-    else:
-        start_i = 0
-    # Normal quads for the rest
-    for i in range(start_i, v_num - 1):
-        for j in range(u_num):
-            p1 = (i * u_num + j, X[i, j], Y[i, j], Z[i, j])
-            p2 = (i * u_num + (j + 1) % u_num, X[i, (j + 1) % u_num], Y[i, (j + 1) % u_num], Z[i, (j + 1) % u_num])
-            p3 = ((i + 1) * u_num + (j + 1) % u_num, X[i + 1, (j + 1) % u_num], Y[i + 1, (j + 1) % u_num], Z[i + 1, (j + 1) % u_num])
-            p4 = ((i + 1) * u_num + j, X[i + 1, j], Y[i + 1, j], Z[i + 1, j])
-            # Two triangles per quad.
-            triangles.append((p1, p2, p3))
-            triangles.append((p1, p3, p4))
-    return triangles
+
 def export_to_stl(triangles, filename, surface_id):
     """Export mesh to binary STL with embedded hash in header."""
     header = f"ID: {surface_id}".ljust(80, ' ').encode('utf-8')
