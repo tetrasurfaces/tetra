@@ -31,7 +31,7 @@ from knots_rops import Knot, Rope, knots_rops_sequence
 from left_weighted_scale import left_weighted_scale
 from tetras import build_mesh, fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
 from regulate_hexagons_on_curve import regulate_hexagons_on_curve
-from kappawise import kappa_grid  # For kappa-based grid spacing
+from kappawise import kappa_coord  # For kappa-based grid spacing
 
 u_num = 36
 v_num = 20
