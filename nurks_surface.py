@@ -31,6 +31,7 @@ from knots_rops import Knot, Rope, knots_rops_sequence
 from left_weighted_scale import left_weighted_scale
 from tetras import build_mesh, fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
 from regulate_hexagons_on_curve import regulate_hexagons_on_curve
+from kappawise import kappa_grid  # For kappa-based grid spacing
 
 u_num = 36
 v_num = 20
@@ -43,7 +44,7 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
     v_num = 20
     inner_radius = 0.01  # Small to avoid artefacts.
     u = np.linspace(0, 2 * np.pi, u_num)
-    v = np.linspace(inner_radius, 1, v_num)
+    v = kappa_grid(inner_radius, 1, v_num, kappa)  # Use kappa-based grid for v
     U, V = np.meshgrid(u, v)
     if hex_mode:
         # Hexagulation: Stagger alternate rows for hexagonal approximation.
@@ -110,7 +111,7 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         mini_radii = radii * mini_factor
         mini_amplitude = amplitude * mini_factor
         v_num_cap = 10
-        v_cap = np.linspace(0, inner_radius, v_num_cap)
+        v_cap = kappa_grid(0, inner_radius, v_num_cap, kappa_cap)  # Use kappa-based grid for cap v
         U_cap, V_cap = np.meshgrid(u, v_cap)
         if hex_mode:
             for i in range(1, v_num_cap, 2):
@@ -129,16 +130,16 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         petal_amp_main_inner = amplitude * (1 - inner_radius)
         sin_variation_main = sin_variation[0, :]  # Angular at boundary
         R_main_inner = radii + petal_amp_main_inner * sin_variation_main
-        R_cap = R_cap_base + (R_main_inner - R_cap_base) * (V_cap[:, None] / inner_radius)
+        R_cap = R_cap_base + (R_main_inner[None, :] - R_cap_base) * (V_cap / inner_radius)
         # Deform cap with same scales.
-        X_cap = R_cap * V_cap[:, None] * np.cos(U_cap) * scale_x
-        Y_cap = R_cap * V_cap[:, None] * np.sin(U_cap) * scale_y
+        X_cap = R_cap * V_cap * np.cos(U_cap) * scale_x
+        Y_cap = R_cap * V_cap * np.sin(U_cap) * scale_y
         # Curve radial for cap.
-        X_cap += curve_factor * np.sin(np.pi * V_cap[:, None]) * np.cos(U_cap + np.pi/4)
-        Y_cap += curve_factor * np.sin(np.pi * V_cap[:, None]) * np.sin(U_cap + np.pi/4)
+        X_cap += curve_factor * np.sin(np.pi * V_cap) * np.cos(U_cap + np.pi/4)
+        Y_cap += curve_factor * np.sin(np.pi * V_cap) * np.sin(U_cap + np.pi/4)
         # Z for cap with high power for continuity.
         Z_main_inner = height * (1 - (inner_radius - inflection) ** kappa)  # Approximate, assuming inner small.
-        dist_cap = V_cap[:, None] / inner_radius
+        dist_cap = V_cap / inner_radius
         Z_cap = height - (height - Z_main_inner) * dist_cap ** kappa_cap
         # Update param_str for cap
         param_str += f',bspline_degree=3,bspline_coarse=36,ribit_state={state},kappa_cap={kappa_cap},mini_factor={mini_factor}'
