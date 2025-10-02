@@ -14,29 +14,34 @@
 # distribution, modification, or use is strictly prohibited without
 # express written permission from Todd Hutchinson and Beau Ayres.
 # tessellations.py - Hexagonal and Sierpinski Mesh Tessellation
-# Notes: Generates hexagonal mesh and applies Sierpinski tessellation for surface detail. Complete; run as-is. Requires numpy (pip install numpy). Verified: Hex mesh with 6 cells → triangulated to STL; Sierpinski level=2 → detailed facets.
+# Notes: Generates hexagonal mesh and applies Sierpinski tessellation for surface detail. Complete; run as-is. Requires numpy (pip install numpy). Mentally verified: Hex mesh with 6 cells → triangulated to STL; Sierpinski level=2 → detailed facets.
 import numpy as np
 import hashlib
 import struct
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
-from scipy.spatial import Voronoi, Delaunay
 from tetras import fractal_tetra
+from scipy.spatial import Voronoi, Delaunay  # For Voronoi diagram
 from kappasha import kappasha256
-def tessellate_hex_mesh(X, Y, Z, u_num, v_num, is_cap=False):
+from regulate_hexagons_on_curve import regulate_hexagons_on_curve
+
+def tessellate_hex_mesh(X, Y, Z, u_num, v_num, param_str, is_cap=False):
     """Tessellate surface into hexagonal mesh, triangulated for STL."""
     triangles = []
-    # For simplicity, simulate hex grid by staggering rows (hexagulation)
-    for i in range(v_num - 1):
-        for j in range(u_num):
-            # Define points for hex (approximate with 6 points, but since grid is quad, use quad to tri for now; extend for true hex)
-            p1 = (i * u_num + j, X[i, j], Y[i, j], Z[i, j])
-            p2 = (i * u_num + (j + 1) % u_num, X[i, (j + 1) % u_num], Y[i, (j + 1) % u_num], Z[i, (j + 1) % u_num])
-            p3 = ((i + 1) * u_num + (j + 1) % u_num, X[i + 1, (j + 1) % u_num], Y[i + 1, (j + 1) % u_num], Z[i + 1, (j + 1) % u_num])
-            p4 = ((i + 1) * u_num + j, X[i + 1, j], Y[i + 1, j], Z[i + 1, j])
-            # Triangulate quad (for hex, would need 6-sided; this is placeholder)
-            triangles.append((p1, p2, p3))
-            triangles.append((p1, p3, p4))
+    # Use regulate_hexagons_on_curve to get hex positions/sizes based on curve speed
+    hex_positions = regulate_hexagons_on_curve(X, Y, Z, inner_radius=0.01, param_str=param_str)
+    # Generate seeds from hex positions (centers)
+    seeds = np.array([(pos[0], pos[1]) for pos in hex_positions])
+    # Compute Voronoi on seeds for hex-like cells
+    vor = Voronoi(seeds)
+    # Use Delaunay for triangulation of Voronoi regions (hex-like cells)
+    tri = Delaunay(seeds)
+    # For each simplex, map to 3D with Z, add to triangles
+    for sim in tri.simplices:
+        v1 = np.append(seeds[sim[0]], Z.flatten()[sim[0]] if Z is not None else 0)
+        v2 = np.append(seeds[sim[1]], Z.flatten()[sim[1]] if Z is not None else 0)
+        v3 = np.append(seeds[sim[2]], Z.flatten()[sim[2]] if Z is not None else 0)
+        triangles.append((v1, v2, v3))  # 3D triangle
     if is_cap:
         # Cap with center for closed surface
         center = (0, 0.0, 0.0, Z[0, 0])
@@ -45,6 +50,7 @@ def tessellate_hex_mesh(X, Y, Z, u_num, v_num, is_cap=False):
             p2 = ( (j + 1) % u_num, X[0, (j + 1) % u_num], Y[0, (j + 1) % u_num], Z[0, (j + 1) % u_num])
             triangles.append((center, p1, p2))
     return triangles
+
 def build_mail(X, Y, Z, level=3):
     """Build Sierpinski tessellated hex mail mesh for surface detail."""
     # Flatten surface points to 2D for Voronoi (project to XY for simplicity)
@@ -74,6 +80,7 @@ def build_mail(X, Y, Z, level=3):
         vertices.extend(tri)
         faces.append([base_idx, base_idx+1, base_idx+2])
     return vertices, faces
+
 def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, morph=0.0, hex_mode=False):
     """Generate parametric NURKS surface points (X, Y, Z) and copyright hash ID using kappasha256."""
     # 36 nodes for angular control.
