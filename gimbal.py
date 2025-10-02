@@ -1,4 +1,3 @@
-# gimbal.py
 # Copyright 2025 Todd Hutchinson, Beau Ayres, Anonymous
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -19,14 +18,14 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider, Button
 from mpl_toolkits.mplot3d import Axes3D
+import struct  # Added for export_to_stl usage
 from scipy.spatial import Voronoi, Delaunay  # For Voronoi hex integration
 from tetras import fractal_tetra
 from nurks_surface import generate_nurks_surface, u_num, v_num
 from tessellations import tessellate_hex_mesh, build_mail
+
 # Global constants
-U_NUM = 36
-V-num = 20
-V_NUM_CAP = 10
+v_num_cap = 10
 
 # Export function
 def export_to_stl(triangles, filename, surface_id):
@@ -38,8 +37,8 @@ def export_to_stl(triangles, filename, surface_id):
         f.write(struct.pack('<I', num_tri))
         for tri in triangles:
             # Compute normal with handling for degenerate cases.
-            v1 = np.array(tri[1][1:]) - np.array(tri[0][1:])
-            v2 = np.array(tri[2][1:]) - np.array(tri[0][1:])
+            v1 = np.array(tri[1]) - np.array(tri[0])
+            v2 = np.array(tri[2]) - np.array(tri[0])
             normal = np.cross(v1, v2)
             norm_len = np.linalg.norm(normal)
             if norm_len > 0:
@@ -48,7 +47,7 @@ def export_to_stl(triangles, filename, surface_id):
                 normal = np.array([0.0, 0.0, 1.0])  # Default upward normal.
             f.write(struct.pack('<3f', *normal))
             for p in tri:
-                f.write(struct.pack('<3f', *p[1:]))
+                f.write(struct.pack('<3f', *p))
             f.write(struct.pack('<H', 0))  # Attribute byte count.
 
 # Initial parameters
@@ -65,14 +64,14 @@ init_morph = 0.0
 init_hex_mode = False
 
 # Generate initial surface
-X, Y, Z, surface_id, X_cap, Y_cap, Z_cap = generate_nurks_surface(
+X, Y, Z, surface_id, X_cap, Y_cap, Z_cap, param_str = generate_nurks_surface(
     ns_diam=init_ns_diam, sw_ne_diam=init_sw_ne_diam, nw_se_diam=init_nw_se_diam,
     twist=init_twist, amplitude=init_amplitude, radii=init_radii, kappa=init_kappa,
     height=init_height, inflection=init_inflection, morph=init_morph, hex_mode=init_hex_mode
 )
 
 # Create the figure and 3D axes
-fig = plt.figure(figsize=(10, 8))
+fig = plt.figure(figsize=(12, 9))
 ax = fig.add_subplot(111, projection='3d')
 ax.set_title(f'NURKS Surface (ID: {surface_id})')
 
@@ -92,46 +91,40 @@ ax.set_ylim(np.min(Y), np.max(Y))
 ax.set_zlim(np.min(Z), np.max(Z))
 
 # Adjust layout for sliders and buttons
-plt.subplots_adjust(left=0.25, bottom=0.25, right=0.95, top=0.95)
+plt.subplots_adjust(left=0.15, bottom=0.3, right=0.95, top=0.95)
 
 # Horizontal sliders (bottom)
-ax_ns_diam = plt.axes([0.25, 0.20, 0.65, 0.03])
+ax_ns_diam = plt.axes([0.25, 0.24, 0.65, 0.03])
 s_ns_diam = Slider(ax_ns_diam, 'NS Diam', 0.1, 2.0, valinit=init_ns_diam)
-
-ax_sw_ne_diam = plt.axes([0.25, 0.17, 0.65, 0.03])
+ax_sw_ne_diam = plt.axes([0.25, 0.21, 0.65, 0.03])
 s_sw_ne_diam = Slider(ax_sw_ne_diam, 'SW-NE Diam', 0.1, 2.0, valinit=init_sw_ne_diam)
-
-ax_nw_se_diam = plt.axes([0.25, 0.14, 0.65, 0.03])
+ax_nw_se_diam = plt.axes([0.25, 0.18, 0.65, 0.03])
 s_nw_se_diam = Slider(ax_nw_se_diam, 'NW-SE Diam', 0.1, 2.0, valinit=init_nw_se_diam)
-
-ax_twist = plt.axes([0.25, 0.11, 0.65, 0.03])
+ax_twist = plt.axes([0.25, 0.15, 0.65, 0.03])
 s_twist = Slider(ax_twist, 'Twist', -np.pi, np.pi, valinit=init_twist)
-
-ax_amplitude = plt.axes([0.25, 0.08, 0.65, 0.03])
+ax_amplitude = plt.axes([0.25, 0.12, 0.65, 0.03])
 s_amplitude = Slider(ax_amplitude, 'Amplitude', 0.0, 1.0, valinit=init_amplitude)
-
-ax_radii = plt.axes([0.25, 0.05, 0.65, 0.03])
+ax_radii = plt.axes([0.25, 0.09, 0.65, 0.03])
 s_radii = Slider(ax_radii, 'Radii', 0.5, 2.0, valinit=init_radii)
-
-ax_kappa = plt.axes([0.25, 0.02, 0.65, 0.03])
+ax_kappa = plt.axes([0.25, 0.06, 0.65, 0.03])
 s_kappa = Slider(ax_kappa, 'Kappa', 0.1, 5.0, valinit=init_kappa)
 
 # Vertical sliders (left side)
 ax_height = plt.axes([0.01, 0.25, 0.0225, 0.63])
 s_height = Slider(ax_height, 'Height', 0.1, 2.0, valinit=init_height, orientation='vertical')
-
-ax_inflection = plt.axes([0.04, 0.25, 0.0225, 0.63])
+ax_inflection = plt.axes([0.05, 0.25, 0.0225, 0.63])
 s_inflection = Slider(ax_inflection, 'Inflection', 0.0, 1.0, valinit=init_inflection, orientation='vertical')
-
-ax_morph = plt.axes([0.07, 0.25, 0.0225, 0.63])
+ax_morph = plt.axes([0.09, 0.25, 0.0225, 0.63])
 s_morph = Slider(ax_morph, 'Morph', 0.0, 2.0, valinit=init_morph, orientation='vertical')
 
 # Buttons (bottom right)
 ax_hex = plt.axes([0.025, 0.025, 0.1, 0.075])
 b_hex = Button(ax_hex, 'Hex Mode: Off')
-
 ax_export = plt.axes([0.025, 0.11, 0.1, 0.075])
 btn_export = Button(ax_export, 'Export STL')
+
+# List of sliders for export
+sliders = [s_ns_diam, s_sw_ne_diam, s_nw_se_diam, s_twist, s_amplitude, s_radii, s_kappa, s_height, s_inflection, s_morph]
 
 # Update function (remove and recreate artists to avoid clearing axes)
 def update(val):
@@ -147,23 +140,19 @@ def update(val):
     inflection = s_inflection.val
     morph = s_morph.val
     hex_mode = init_hex_mode
-
-    X, Y, Z, surface_id, X_cap, Y_cap, Z_cap = generate_nurks_surface(
+    X, Y, Z, surface_id, X_cap, Y_cap, Z_cap, param_str = generate_nurks_surface(
         ns_diam=ns_diam, sw_ne_diam=sw_ne_diam, nw_se_diam=nw_se_diam,
         twist=twist, amplitude=amplitude, radii=radii, kappa=kappa,
         height=height, inflection=inflection, morph=morph, hex_mode=hex_mode
     )
-
     # Remove old main surface artists
     if surf is not None:
         surf.remove()
     if wire is not None:
         wire.remove()
-
     # Plot new main surface
     surf = ax.plot_surface(X, Y, Z, cmap='viridis', linewidth=0, antialiased=False)
     wire = ax.plot_wireframe(X, Y, Z, rstride=1, cstride=1, color='black', linewidth=0.5, alpha=0.5)
-
     # Handle cap if in hex mode
     if hex_mode and X_cap is not None:
         if surf_cap is not None:
@@ -179,7 +168,6 @@ def update(val):
         if wire_cap is not None:
             wire_cap.remove()
             wire_cap = None
-
     ax.set_title(f'NURKS Surface (ID: {surface_id})')
     ax.set_xlim(np.min(X), np.max(X))
     ax.set_ylim(np.min(Y), np.max(Y))
@@ -209,26 +197,23 @@ def on_export(event):
     inflection = s_inflection.val
     morph = s_morph.val
     hex_mode = init_hex_mode
-
-    X, Y, Z, surface_id, X_cap, Y_cap, Z_cap = generate_nurks_surface(
+    X, Y, Z, surface_id, X_cap, Y_cap, Z_cap, param_str = generate_nurks_surface(
         ns_diam=ns_diam, sw_ne_diam=sw_ne_diam, nw_se_diam=nw_se_diam,
         twist=twist, amplitude=amplitude, radii=radii, kappa=kappa,
         height=height, inflection=inflection, morph=morph, hex_mode=hex_mode
     )
-
-    triangles_main = tessellate_hex_mesh(X, Y, Z, U_NUM, V_NUM)
+    triangles_main = tessellate_hex_mesh(X, Y, Z, u_num, v_num, param_str)
     triangles = triangles_main
     if hex_mode and X_cap is not None:
-        triangles_cap = tessellate_hex_mesh(X_cap, Y_cap, Z_cap, U_NUM, V_NUM_CAP, is_cap=True)
+        triangles_cap = tessellate_hex_mesh(X_cap, Y_cap, Z_cap, u_num, v_num_cap, param_str, is_cap=True)
         triangles += triangles_cap
-
     filename = 'nurks_surface.stl'
     export_to_stl(triangles, filename, surface_id)
-    print(f"Exported to {filename} with ID: {surface_id}")
+    print(f"Exported to nurks_surface.stl with ID: {surface_id}")
 
 btn_export.on_clicked(on_export)
 
-# Connect sliders to update function
+# Connect sliders to update
 s_ns_diam.on_changed(update)
 s_sw_ne_diam.on_changed(update)
 s_nw_se_diam.on_changed(update)
