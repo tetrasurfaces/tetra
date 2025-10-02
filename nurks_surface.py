@@ -25,87 +25,18 @@ import math
 import mpmath
 mpmath.mp.dps = 19  # Precision for φ, π.
 from kappasha import kappasha256
+from math_utils import kappa_calc
 from wise_transforms import bitwise_transform, hexwise_transform, hashwise_transform
 from id_util_nurks_closure_hex import custom_interoperations_green_curve
 from ribit import ribit_generate
 from knots_rops import Knot, Rope, knots_rops_sequence
 from left_weighted_scale import left_weighted_scale
-from tetras import fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
+from tetras import build_mesh, fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
+from regulate_hexagons_on_curve import regulate_hexagons_on_curve
 
 u_num = 36
 v_num = 20
 v_num_cap = 10
-
-def build_mesh(x_curve, y_curve, num_points, fractal_level=3):
-    # From tetras.py, assuming it's copied or imported.
-    # Compute curve length for scale
-    curve_length = np.sum(np.sqrt(np.diff(x_curve)**2 + np.diff(y_curve)**2))
-    scale = curve_length if curve_length > 0 else 1.0
-   
-    # Initial regular tetrahedron vertices
-    orig = np.array([
-        [0, 0, 0],
-        [1, 0, 0],
-        [0.5, np.sqrt(3)/2, 0],
-        [0.5, np.sqrt(3)/6, np.sqrt(6)/3]
-    ]) * scale
-   
-    all_triangles = [] # List of [[x1,y1,z1], [x2,y2,z2], [x3,y3,z3]]
-    fractal_tetra(orig.tolist(), fractal_level, all_triangles)
-   
-    # Flatten to global vertices and faces
-    vertices = []
-    faces = []
-    for tri in all_triangles:
-        base_idx = len(vertices)
-        vertices.extend(tri)
-        faces.append([base_idx, base_idx+1, base_idx+2])
-   
-    return vertices, faces
-
-def kappa_calc(n, round_idx, prime_index=11):
-    kappa_base = 0.3536 + 0.0027 * (prime_index / 51.0) if prime_index % 2 == 1 else 0.3563 + 0.0027 * (prime_index / 51.0)
-    abs_n = abs(n - 12) / 12.0
-    num = PHI_FLOAT ** abs_n - PHI_FLOAT ** (-abs_n)
-    denom = abs(PHI_FLOAT ** (10/3) - PHI_FLOAT ** (-10/3)) * abs(PHI_FLOAT ** (-5/6) - PHI_FLOAT ** (5/6))
-    result = (1 + kappa_base * num / denom) * (2 / 1.5) - 0.333 if 2 < n < 52 else max(0, 1.5 * math.exp(-((n - 60) ** 2) / 400.0) * math.cos(0.5 * (n - 316)))
-    return result % 369
-
-def custom_interoperations_green_curve(points, kappas, is_closed=False):
-    points = np.array(points)
-    kappas = np.array(kappas)
-    degree = 3
-    num_output_points = 1000
-  
-    if is_closed and len(points) > degree:
-        n = len(points)
-        extended_points = np.concatenate((points[n-degree:], points, points[0:degree]))
-        extended_kappas = np.concatenate((kappas[n-degree:], kappas, kappas[0:degree]))
-        len_extended = len(extended_points)
-        knots = np.linspace(-degree / float(n), 1 + degree / float(n), len_extended + 1)
-  
-        u_fine = np.linspace(0, 1, num_output_points, endpoint=False)
-  
-        smooth_x = np.zeros(num_output_points)
-        smooth_y = np.zeros(num_output_points)
-  
-        for j, u in enumerate(u_fine):
-            num_x, num_y, den = 0.0, 0.0, 0.0
-            for i in range(len_extended):
-                b = bspline_basis(u, i, degree, knots)
-                kappa_val = kappa_calc(i, 0) # Use kappa_calc for dynamic weighting
-                w = extended_kappas[i] * b * kappa_val
-                num_x += w * extended_points[i, 0]
-                num_y += w * extended_points[i, 1]
-                den += w
-            if den > 0:
-                smooth_x[j] = num_x / den
-                smooth_y[j] = num_y / den
-  
-        smooth_x = np.append(smooth_x, smooth_x[0])
-        smooth_y = np.append(smooth_y, smooth_y[0])
-  
-    return smooth_x, smooth_y
 
 def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, morph=0.0, hex_mode=False):
     """Generate parametric NURKS surface points (X, Y, Z) and copyright hash ID using kappasha256."""
