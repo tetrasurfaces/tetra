@@ -33,12 +33,13 @@ from knots_rops import Knot, Rope, knots_rops_sequence
 from left_weighted_scale import left_weighted_scale
 from tetras import build_mesh, fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
 from regulate_hexagons_on_curve import regulate_hexagons_on_curve
+from scipy.spatial import Voronoi, Delaunay  # For Voronoi hex integration
 
 u_num = 36
 v_num = 20
 v_num_cap = 10
 
-def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, morph=0.0, hex_mode=False):
+def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, morph=0.0, hex_mode=True):
     """Generate parametric NURKS surface points (X, Y, Z) and copyright hash ID using kappasha256."""
     # 36 nodes for angular control.
     u_num = 36
@@ -131,7 +132,7 @@ def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.
         petal_amp_main_inner = amplitude * (1 - inner_radius)
         sin_variation_main = sin_variation[0, :] # Angular at boundary
         R_main_inner = radii + petal_amp_main_inner * sin_variation_main
-        R_cap = R_cap_base + (R_main_inner - R_cap_base) * (V_cap[:, none] / inner_radius)
+        R_cap = R_cap_base + (R_main_inner - R_cap_base) * (V_cap[:, None] / inner_radius)
         # Deform cap with same scales.
         X_cap = R_cap * V_cap * np.cos(U_cap) * scale_x
         Y_cap = R_cap * V_cap * np.sin(U_cap) * scale_y
