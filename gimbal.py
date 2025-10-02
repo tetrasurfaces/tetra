@@ -25,8 +25,8 @@ from tetras import fractal_tetra
 from nurks_surface import generate_nurks_surface, u_num, v_num
 from tessellations import tessellate_hex_mesh, build_mail
 # Global constants
-u_num = 36
-v_num = 20
+U_NUM = 36
+V-num = 20
 V_NUM_CAP = 10
 
 # Export function
