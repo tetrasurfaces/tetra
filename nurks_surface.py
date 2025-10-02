@@ -32,6 +32,10 @@ from knots_rops import Knot, Rope, knots_rops_sequence
 from left_weighted_scale import left_weighted_scale
 from tetras import fractal_tetra  # For Sierpinski tetrahedron (mail mesh)
 
+u_num = 36
+v_num = 20
+v_num_cap = 10
+
 def build_mesh(x_curve, y_curve, num_points, fractal_level=3):
     # From tetras.py, assuming it's copied or imported.
     # Compute curve length for scale
