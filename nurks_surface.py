@@ -23,13 +23,15 @@ import hashlib
 import struct
 import math
 import mpmath
-mpmath.mp.dps = 19 # Precision for φ, π.
+mpmath.mp.dps = 19  # Precision for φ, π.
 from kappasha import kappasha256
 from wise_transforms import bitwise_transform, hexwise_transform, hashwise_transform
 from id_util_nurks_closure_hex import custom_interoperations_green_curve
 from ribit import ribit_generate
 from knots_rops import Knot, Rope, knots_rops_sequence
 from left_weighted_scale import left_weighted_scale
+from tetras import fractal_tetra, build_mesh  # From tetras.py for mail mesh
+
 def generate_nurks_surface(ns_diam=1.0, sw_ne_diam=1.0, nw_se_diam=1.0, twist=0.0, amplitude=0.3, radii=1.0, kappa=1.0, height=1.0, inflection=0.5, hex_mode=False):
     """Generate parametric NURKS surface points (X, Y, Z) and copyright hash ID using kappasha256."""
     # 36 nodes for angular control.
