@@ -14,5 +14,35 @@
 # distribution, modification, or use is strictly prohibited without
 # express written permission from Todd Hutchinson and Beau Ayres.
 
-import numpy as np; def friction_vibe(pos1, pos2, kappa=0.3): dist = np.linalg.norm(pos1 - pos2); if dist < 0.1: vibe = np.sin(2 * np.pi * dist / 0.05); gyro = np.cross(pos1, pos2) / dist; warp = 1 / (1 + kappa * dist); return vibe * warp, gyro else: return 0, np.zeros(3) # call: pos1 = np.array([0,0,0]); pos2 = np.array([0.05,0,0]); wave, spin = friction_vibe(pos1, pos2) Iterate: Fake close pos-get wave ~0. something oscillating, spin cross non-zero no force, far? Zero flat, adjust kappa 0.4 for softer near.
-import numpy as np; def gyro_gimbal(pos1, pos2, tilt=np.array([0.1,0.1,0.1]), kappa=0.3): dist = np.linalg.norm(pos1 - pos2); if dist < 0.1: vibe, base_gyro = friction_vibe(pos1, pos2, kappa); gimbal_spin = base_gyro + tilt / dist; warp = 1 / (1 + kappa * dist); return vibe * warp, gimbal_spin else: return 0, np.zeros(3); # call: pos1 = np.array([0,0,0]); pos2 = np.array([0.05,0,0]); wave, spin = gyro_gimbal(pos1, pos2) Iterate: Fake close pos-get wave ~0 osc, spin adds tilt boost non-zero no jam, far? Flat zero, adjust tilt [0.2,0.2,0.2] for stronger map if force feels light.
+import numpy as np
+
+class TetraVibe:
+    def friction_vibe(self, pos1, pos2, kappa=0.3):
+        dist = np.linalg.norm(pos1 - pos2)
+        if dist < 0.1:
+            vibe = np.sin(2 * np.pi * dist / 0.05)
+            gyro = np.cross(pos1, pos2) / dist
+            warp = 1 / (1 + kappa * dist)
+            return vibe * warp, gyro
+        else:
+            return 0, np.zeros(3)
+
+    def gyro_gimbal(self, pos1, pos2, tilt=np.array([0.1,0.1,0.1]), kappa=0.3):
+        dist = np.linalg.norm(pos1 - pos2)
+        if dist < 0.1:
+            vibe, base_gyro = self.friction_vibe(pos1, pos2, kappa)
+            gimbal_spin = base_gyro + tilt / dist
+            warp = 1 / (1 + kappa * dist)
+            return vibe * warp, gimbal_spin
+        else:
+            return 0, np.zeros(3)
+
+if __name__ == "__main__":
+    model = TetraVibe()
+    pos1 = np.array([0,0,0])
+    pos2 = np.array([0.05,0,0])
+    wave, spin = model.gyro_gimbal(pos1, pos2)
+    print(f"Wave: {wave}, Spin: {spin}")
+    pos3 = np.array([0.15,0,0])  # far fake
+    wave_far, spin_far = model.gyro_gimbal(pos1, pos3)
+    print(f"Far wave: {wave_far}, Far spin: {spin_far}")
