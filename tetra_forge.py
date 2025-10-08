@@ -39,6 +39,7 @@ import haptics
 from welding import weave, TIG, acetylene
 from prep_tools import angle_grinder, swarf_vacuum, acetylene_mark, auto_markup
 from test_tools import flex_until_break, ink_test
+from post_process import anodize, viscosity_check, pack, quench, paint
 
 def beam(env='garage', material='mild_steel'):
     ribit.mesh('W21x62')  # hyperbolic ellipse stub
@@ -102,26 +103,6 @@ def material_input(anything):
 
 def license_override():
     pass
-
-def anodize(acid=None, temp=None, volts=None, dye=None, seal=False):
-    """Anodize surface with optional dye and seal."""
-    print(f"Anodizing: acid={acid}, temp={temp}C, volts={volts}, dye={dye}, seal={seal}")
-
-def viscosity_check(cps):
-    """Check viscosity for dyes or oils."""
-    print(f"Viscosity checked: {cps} cps")
-
-def pack(compound, temp, hours):
-    """Case hardening packing process."""
-    print(f"Packing: compound={compound}, temp={temp}C, duration={hours}h")
-
-def quench(medium, temp):
-    """Quench in specified medium."""
-    print(f"Quenching: medium={medium}, temp={temp}C")
-
-def paint(primer, topcoat, flakes):
-    """Apply paint with primer and topcoat."""
-    print(f"Painting: primer={primer}, topcoat={topcoat}, flakes={flakes}")
 
 if __name__ == "__main__":
     main()
