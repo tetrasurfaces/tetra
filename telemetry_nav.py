@@ -30,9 +30,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-# Existing telemetry.py content (assumed)
-# ... (previous code, including log_quench)
-
 import hashlib
 
 def log_ipfs_navigation(vector_data, cache_moves=5):
