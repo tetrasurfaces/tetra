@@ -1,25 +1,20 @@
 # tetra.py
 # Copyright 2025 Beau Ayres
+#
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
 # http://www.apache.org/licenses/LICENSE-2.0
+#
 # Unless required by applicable law or agreed to in writing, software
 # distributed under the License is distributed on an "AS IS" BASIS,
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
-# Proprietary Software - All Rights Reserved
-#
-# This software is proprietary and confidential. Unauthorized copying,
-# distribution, modification, or use is strictly prohibited without
-# express written permission from Beau Ayres.
-#
-# AGPL-3.0-or-later licensed
 #
 # This program is free software: you can redistribute it and/or modify
-# it under the terms of the GNU Affero General Public License as published by
-# the Free Software Foundation, either version 3 of the License, or
+# it under the terms of the GNU Affero General Public License as published
+# by the Free Software Foundation, either version 3 of the License, or
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
@@ -29,6 +24,7 @@
 #
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
+
 import numpy as np
 import matplotlib.pyplot as plt
 from mpl_toolkits.mplot3d import Axes3D
@@ -41,6 +37,7 @@ import warnings
 from matplotlib import MatplotlibDeprecationWarning
 import struct
 import base64
+
 # Import mpld3 if available for HTML export
 try:
     import mpld3
@@ -48,58 +45,73 @@ try:
 except ImportError:
     print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
+
 from temperature_salt import secure_hash_two
 from kappa_grid import kappa_grid
 from green_curve import bspline_basis, custom_interoperations_green_curve
+
 # Set precision for Decimal
 getcontext().prec = 28
+
 # Suppress warnings
 warnings.filterwarnings("ignore", category=MatplotlibDeprecationWarning)
+
 # A3 landscape dimensions (normalized: width long side, height short side)
-WIDTH = 420 / 297 # A3 landscape: 420mm width, 297mm height, normalized height=1.0
+WIDTH = 420 / 297  # A3 landscape: 420mm width, 297mm height, normalized height=1.0
 HEIGHT = 1.0
-PURPLE_LINES = [1/3, 2/3] # Dividers on the width
-unit_per_mm = 1.0 / 297 # Normalize to A3 short side
+PURPLE_LINES = [1/3, 2/3]  # Dividers on the width
+unit_per_mm = 1.0 / 297  # Normalize to A3 short side
 scale_label = f"Scale: 1mm = {unit_per_mm:.5f} units (A3 short side = 297mm)"
+
 # Dreyfuss human factors: Optimal eye distance ~20 inches (508mm)
-EYE_DISTANCE = 500 * unit_per_mm # Normalized eye distance to viewport
-HORIZON_HEIGHT = HEIGHT * 0.5 # Default horizon line at half height
-EYE_LINE = HORIZON_HEIGHT # Eye line coincides with horizon
+EYE_DISTANCE = 500 * unit_per_mm  # Normalized eye distance to viewport
+HORIZON_HEIGHT = HEIGHT * 0.5  # Default horizon line at half height
+EYE_LINE = HORIZON_HEIGHT  # Eye line coincides with horizon
+
 # Golden spiral parameters
 PHI = (1 + np.sqrt(5)) / 2
 kappa = 1 / PHI
-A_SPIRAL = 0.001 # Scaled down slightly from 0.01 to fit better
+A_SPIRAL = 0.001  # Scaled down slightly from 0.01 to fit better
 B_SPIRAL = np.log(PHI) / (np.pi / 2)
+
 # Define κθπ for the green segment
 theta_max = kappa * np.pi**2 / PHI
+
 # Compute the full spiral
 theta_full = np.linspace(0, 10 * np.pi, 1000)
 r_full = A_SPIRAL * np.exp(B_SPIRAL * theta_full)
 x_full = r_full * np.cos(theta_full)
 y_full = r_full * np.sin(theta_full)
+
 # Compute the green segment (θ from π to 2π)
 theta_green = np.linspace(np.pi, 2 * np.pi, 200)
 r_green = A_SPIRAL * np.exp(B_SPIRAL * theta_green)
 x_green = r_green * np.cos(theta_green)
 y_green = r_green * np.sin(theta_green)
+
 # Compute the chord and shift
 x1, y1 = x_green[0], y_green[0]
 x2, y2 = x_green[-1], y_green[-1]
 chord_length = np.abs(x2 - x1)
+
 # Shift so the segment starts at x=0
 x_green_shifted = x_green - x1
 x_green_final = x_green_shifted
+
 # Scale to match the target chord length (between purple lines)
 target_chord = PURPLE_LINES[1] - PURPLE_LINES[0]
 scale_factor = target_chord / chord_length if chord_length != 0 else 1.0
 x_green_scaled = x_green_final * scale_factor
 y_green_scaled = y_green * scale_factor
+
 # Shift to start at the first purple line
 x_green_final = x_green_scaled + PURPLE_LINES[0]
+
 # Compute κ at 2πR for the green segment
 r_max = A_SPIRAL * np.exp(B_SPIRAL * theta_max)
 two_pi_r = 2 * np.pi * r_max
 kappa_at_2piR = two_pi_r / PHI
+
 # Define the 52 Mersenne prime exponents (updated with the latest known as of 2025)
 mersenne_exponents = [
     2, 3, 5, 7, 13, 17, 19, 31, 61, 89, 107, 127, 521, 607, 1279, 2203, 2281,
@@ -107,13 +119,15 @@ mersenne_exponents = [
     110503, 132049, 216091, 756839, 859433, 1257787, 1398269, 2976221, 3021377,
     6972593, 13466917, 20996011, 24036583, 25964951, 30402457, 32582657,
     37156667, 42643801, 43112609, 57885161, 74207281, 77232917, 82589933,
-    136279841 # Latest known Mersenne prime exponent as of 2025 (52nd)
+    136279841  # Latest known Mersenne prime exponent as of 2025 (52nd)
 ]
+
 # Map exponents to x-positions (0 to width)
 min_exponent = 2
 max_exponent_at_x1 = 1_100_000_000
 exponent_range_per_x = (max_exponent_at_x1 - min_exponent) / 1.0
-x_positions = [(exponent - min_exponent) / exponent_range_per_x * WIDTH for exponent in mersenne_exponents] # Scale to full WIDTH
+x_positions = [(exponent - min_exponent) / exponent_range_per_x * WIDTH for exponent in mersenne_exponents]  # Scale to full WIDTH
+
 # Create the 52 curves data
 curves = []
 curve_lines = []
@@ -125,13 +139,16 @@ for i, (exponent, x_pos) in enumerate(zip(mersenne_exponents, x_positions)):
     x_new_shifted = x_new - x_new[0]
     curves.append((x_new_shifted, y_new, f"M{exponent}"))
     curve_lines.append(None)
+
 # A4 short edge divisions (110 parts, scaled to first part of WIDTH)
-division_step = WIDTH / 2 / 110 # Assume first half is A4-like
+division_step = WIDTH / 2 / 110  # Assume first half is A4-like
 division_positions = np.arange(0, WIDTH / 2 + division_step, division_step)
+
 # Scale key for the title
-scale_key_positions = division_positions[::10] / (WIDTH / 2) # Normalize to 0-1 for first half
+scale_key_positions = division_positions[::10] / (WIDTH / 2)  # Normalize to 0-1 for first half
 scale_key_exponents = [int(2 + (1_100_000_000 - 2) * x) for x in scale_key_positions]
 scale_key_text = "Scale (x=0 to WIDTH/2): " + ", ".join([f"{x:.2f}: {exp:,}" for x, exp in zip(scale_key_positions, scale_key_exponents)])
+
 # Flags for Mersenne primes
 flag_length = 0.5
 start_y = -0.1
@@ -148,6 +165,7 @@ min_freq_exp = -4.459
 max_freq_exp = 5.506
 exponent_range = max_freq_exp - min_freq_exp
 log_range = log_max - log_min
+
 for i, (x_new, y_new, label) in enumerate(curves):
     x_end = x_new[-1]
     y_end = y_new[-1]
@@ -167,6 +185,7 @@ for i, (x_new, y_new, label) in enumerate(curves):
         x_marker = x_start + (flag_length * 0.5) * np.cos(angle_rad)
         y_marker = y_start + (flag_length * 0.5) * np.sin(angle_rad)
         circle_markers.append((x_marker, y_marker))
+
 # Global variables for interactive modes
 protractor_active = False
 ruler_active = False
@@ -183,33 +202,35 @@ ruler_points = []
 ruler_line = None
 ruler_text = None
 dimension_labels = []
-drawing_points = [] # Kappa nodes (first endpoint of each greenchord)
-kappas = [] # Kappa values at each node
-node_scatter = [] # List of scatter objects for kappa nodes
-original_colors = [] # List to store original colors of nodes
+drawing_points = []  # Kappa nodes (first endpoint of each greenchord)
+kappas = []  # Kappa values at each node
+node_scatter = []  # List of scatter objects for kappa nodes
+original_colors = []  # List to store original colors of nodes
 selected_node_index = -1
 dragging = False
-ghost_handles = [] # List for theta ghost handles
-green_curve_line = None # Single plot object for the interoperated greencurve
-CLOSE_THRESHOLD = 0.05 # Distance to first point to consider closing
-SNAP_THRESHOLD = 0.05 # Threshold for snapping to dividers (UX improvement)
-vanishing_points = [] # Vanishing points for each triangulation
-previous_kappa = 1.0 # Initial kappa for decay
-curvature = 1.0 # Initial curvature (kappa)
-height = 0.5 # Initial height for 3D model
-num_rings = 20 # Number of loft rings
-fractal_level = 3 # Fractal level for flowers
-radial_chord = 0.5 # Radial chord for flower
-tangential_chord = 0.2 # Tangential chord for flower
-height_chord = 0.1 # Height chord for flower
+ghost_handles = []  # List for theta ghost handles
+green_curve_line = None  # Single plot object for the interoperated greencurve
+CLOSE_THRESHOLD = 0.05  # Distance to first point to consider closing
+SNAP_THRESHOLD = 0.05  # Threshold for snapping to dividers (UX improvement)
+vanishing_points = []  # Vanishing points for each triangulation
+previous_kappa = 1.0  # Initial kappa for decay
+curvature = 1.0  # Initial curvature (kappa)
+height = 0.5  # Initial height for 3D model
+num_rings = 20  # Number of loft rings
+fractal_level = 3  # Fractal level for flowers
+radial_chord = 0.5  # Radial chord for flower
+tangential_chord = 0.2  # Tangential chord for flower
+height_chord = 0.1  # Height chord for flower
 current_vertices = None
 current_faces = None
-last_angle = 0.0 # Last measured angle from protractor
+last_angle = 0.0  # Last measured angle from protractor
 show_harmonics = False
 harmonic_texts = []
 annotation_objects = []
+
 # Pre-compute kappa grid
 kappa_grid = kappa_grid(grid_size=100)
+
 # Fractal Flower Mesh with guide curves using diameter logic
 def fractal_flower(center, scale, level, all_polygons, all_guide_curves, rotation_angle=0.0):
     """
@@ -228,12 +249,12 @@ def fractal_flower(center, scale, level, all_polygons, all_guide_curves, rotatio
     """
     rot_cos = np.cos(rotation_angle)
     rot_sin = np.sin(rotation_angle)
-    num_points = 37 # 36 points for higher resolution
+    num_points = 37  # 36 points for higher resolution
     t = np.linspace(0, 2 * np.pi, num_points)[:-1]
-    r = scale * (radial_chord + tangential_chord * np.sin(6 * t)) # 6 petals, use sin for symmetry if needed
+    r = scale * (radial_chord + tangential_chord * np.sin(6 * t))  # 6 petals, use sin for symmetry if needed
     dx = r * np.cos(t)
     dy = r * np.sin(t)
-    dz = scale * height_chord * np.cos(6 * t) # Curved z for surface
+    dz = scale * height_chord * np.cos(6 * t)  # Curved z for surface
     # Apply rotation to dx, dy (around z)
     x_rot = center[0] + dx * rot_cos - dy * rot_sin
     y_rot = center[1] + dx * rot_sin + dy * rot_cos
@@ -255,10 +276,10 @@ def fractal_flower(center, scale, level, all_polygons, all_guide_curves, rotatio
     if level == 0:
         return
     # Add smaller flowers at petal tips
-    small_scale = scale / PHI # Golden ratio scale
+    small_scale = scale / PHI  # Golden ratio scale
     for i in range(6):
         theta = i * (2 * np.pi / 6)
-        tip_r = scale * (radial_chord + tangential_chord) # Max r for tip
+        tip_r = scale * (radial_chord + tangential_chord)  # Max r for tip
         tip_dx = tip_r * np.cos(theta)
         tip_dy = tip_r * np.sin(theta)
         tip_dz = scale * height_chord
@@ -268,17 +289,20 @@ def fractal_flower(center, scale, level, all_polygons, all_guide_curves, rotatio
         tip_z = center[2] + tip_dz
         tip_center = [tip_x, tip_y, tip_z]
         fractal_flower(tip_center, small_scale, level - 1, all_polygons, all_guide_curves, rotation_angle + np.pi)
+
 # Triangulate polygon for rendering (fan triangulation)
 def triangulate_poly(poly):
     tris = []
     for i in range(1, len(poly) - 1):
-        tris.append([poly[0], poly[i], poly[i+1]])
+        tris.append([poly[0], poly[i], poly[i + 1]])
     return tris
+
 # Hash entropy for lower surface
 def hash_entropy(p):
     h_str = f"{p[0]:.6f}{p[1]:.6f}{p[2]:.6f}"
     h = int(hashlib.sha256(h_str.encode()).hexdigest(), 16) % 1000 / 1000.0 * 0.05 - 0.025
     return h
+
 # Build mesh using fractal flower (ties to curve by scaling to curve length)
 def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_points=None, fractal_level=3):
     """
@@ -304,7 +328,7 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
             z_curve = z_curve[indices]
     n = len(x_curve)
     if z_curve is None:
-        z_curve = np.zeros(n) # Default to flat if no z provided
+        z_curve = np.zeros(n)  # Default to flat if no z provided
     # Use node 2 as datum when closed
     center_x = drawing_points[1][0] if is_closed and len(drawing_points) > 1 else drawing_points[0][0] if drawing_points else np.mean(x_curve)
     center_y = drawing_points[1][1] if is_closed and len(drawing_points) > 1 else drawing_points[0][1] if drawing_points else np.mean(y_curve)
@@ -318,8 +342,8 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
     upper_bases = [parting_base]
     for l in range(1, num_rings):
         s = l / (num_rings - 1.0)
-        scale = 1 - s**2 # Vertical tangent at s=0 (dr/ds=0)
-        g_val = (height / 2) * s**2 # Quadratic for constant curvature
+        scale = 1 - s**2  # Vertical tangent at s=0 (dr/ds=0)
+        g_val = (height / 2) * s**2  # Quadratic for constant curvature
         base = len(vertices)
         upper_bases.append(base)
         for i in range(n):
@@ -333,8 +357,8 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
                 dir_x = 1.0
                 dir_y = 0.0
             theta = np.arctan2(vec_y, vec_x)
-            phase = 0.0 # Upper phase
-            flower_mod = tangential_chord * np.cos(6 * theta + phase) * s # Modulation increases inward
+            phase = 0.0  # Upper phase
+            flower_mod = tangential_chord * np.cos(6 * theta + phase) * s  # Modulation increases inward
             r = norm * scale * (radial_chord + flower_mod)
             x = center_x + r * dir_x
             y = center_y + r * dir_y
@@ -343,11 +367,11 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
     center_upper_idx = len(vertices)
     vertices.append([center_x, center_y, height / 2])
     # Lower surface: mirrored with phase offset for interlacing and entropy
-    lower_bases = [parting_base] # Shared edge
+    lower_bases = [parting_base]  # Shared edge
     for l in range(1, num_rings):
         s = l / (num_rings - 1.0)
         scale = 1 - s**2
-        g_val = (height / 2) * s**2 # Quadratic for constant curvature (sign same for inheritance magnitude)
+        g_val = (height / 2) * s**2  # Quadratic for constant curvature (sign same for inheritance magnitude)
         base = len(vertices)
         lower_bases.append(base)
         for i in range(n):
@@ -361,7 +385,7 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
                 dir_x = 1.0
                 dir_y = 0.0
             theta = np.arctan2(vec_y, vec_x)
-            phase = np.pi / 6 # Lower phase offset for interlacing
+            phase = np.pi / 6  # Lower phase offset for interlacing
             flower_mod = tangential_chord * np.cos(6 * theta + phase) * s
             r = norm * scale * (radial_chord + flower_mod)
             x = center_x + r * dir_x
@@ -389,8 +413,8 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
     # Integrate fractal flower for caps (no fan, use flower fractals)
     # Compute curve length for scale
     curve_length = np.sum(np.sqrt(np.diff(x_curve)**2 + np.diff(y_curve)**2))
-    flower_scale = curve_length * 0.1 if curve_length > 0 else 0.5 # Scale to curve
-    all_polygons = [] # List of list of [x,y,z] for each polygon
+    flower_scale = curve_length * 0.1 if curve_length > 0 else 0.5  # Scale to curve
+    all_polygons = []  # List of list of [x,y,z] for each polygon
     all_guide_curves = []  # New: Collect guide curve pairs
     # Upper cap flower
     fractal_flower(vertices[center_upper_idx], flower_scale, fractal_level, all_polygons, all_guide_curves, rotation_angle=np.pi)
@@ -426,26 +450,28 @@ def build_mesh(x_curve, y_curve, z_curve=None, height=0.5, num_rings=20, num_poi
     norm_x = np.clip(((vertices[:, 0] / max_dim) + 1) / 2 * (grid_size - 1), 0, grid_size - 1).astype(int)
     norm_y = np.clip(((vertices[:, 1] / max_dim) + 1) / 2 * (grid_size - 1), 0, grid_size - 1).astype(int)
     kappa_mod = kappa_slice[norm_y, norm_x]
-    vertices[:, 2] += kappa_mod * 0.1 # Scale z modulation
-    vertices[:, 0] += kappa_mod * 0.05 * np.sin(2 * np.pi * vertices[:, 2] / height) # Compound in x
-    vertices[:, 1] += kappa_mod * 0.05 * np.cos(2 * np.pi * vertices[:, 2] / height) # Compound in y
+    vertices[:, 2] += kappa_mod * 0.1  # Scale z modulation
+    vertices[:, 0] += kappa_mod * 0.05 * np.sin(2 * np.pi * vertices[:, 2] / height)  # Compound in x
+    vertices[:, 1] += kappa_mod * 0.05 * np.cos(2 * np.pi * vertices[:, 2] / height)  # Compound in y
     # Make flowers sacrificial: remove flower faces after modulation (assume last added are flowers)
-    flower_face_start = len(faces) - len(all_polygons) * 35 # Adjusted for 36 points per flower (approx 35 triangles)
+    flower_face_start = len(faces) - len(all_polygons) * 35  # Adjusted for 36 points per flower (approx 35 triangles)
     faces = faces[:flower_face_start]
     return vertices, faces
+
 # NURBS basis function
 def nurbs_basis(u, i, p, knots):
     if p == 0:
-        return 1.0 if knots[i] <= u <= knots[i+1] else 0.0 # Include = for end
-    if knots[i+p] == knots[i]:
+        return 1.0 if knots[i] <= u <= knots[i + 1] else 0.0  # Include = for end
+    if knots[i + p] == knots[i]:
         c1 = 0.0
     else:
-        c1 = (u - knots[i]) / (knots[i+p] - knots[i]) * nurbs_basis(u, i, p-1, knots)
-    if knots[i+p+1] == knots[i+1]:
+        c1 = (u - knots[i]) / (knots[i + p] - knots[i]) * nurbs_basis(u, i, p - 1, knots)
+    if knots[i + p + 1] == knots[i + 1]:
         c2 = 0.0
     else:
-        c2 = (knots[i+p+1] - u) / (knots[i+p+1] - knots[i+1]) * nurbs_basis(u, i+1, p-1, knots)
+        c2 = (knots[i + p + 1] - u) / (knots[i + p + 1] - knots[i + 1]) * nurbs_basis(u, i + 1, p - 1, knots)
     return c1 + c2
+
 # Compute NURBS curve point
 def nurbs_curve_point(u, control_points, weights, p, knots):
     n = len(control_points) - 1
@@ -460,13 +486,15 @@ def nurbs_curve_point(u, control_points, weights, p, knots):
     if denom == 0:
         return 0, 0
     return x / denom, y / denom
+
 # Generate NURBS curve
 def generate_nurbs_curve(points, weights, p, knots, num_points=1000):
-    u_min, u_max = knots[p], knots[-p-1]
+    u_min, u_max = knots[p], knots[-p - 1]
     u_values = np.linspace(u_min, u_max, num_points, endpoint=False)
     curve = [nurbs_curve_point(u, points, weights, p, knots) for u in u_values]
-    curve.append(curve[0]) # Append first point for exact closure
-    return np.array([list(pt) for pt in curve]) # Convert to np.array of shape (num_points+1, 2)
+    curve.append(curve[0])  # Append first point for exact closure
+    return np.array([list(pt) for pt in curve])  # Convert to np.array of shape (num_points+1, 2)
+
 # Compute golden spiral
 def compute_golden_spiral():
     theta = np.linspace(0, 10 * np.pi, 1000)
@@ -474,26 +502,29 @@ def compute_golden_spiral():
     x = r * np.cos(theta)
     y = r * np.sin(theta)
     # Scale down to fit within page bounds
-    scale_factor = min(WIDTH, HEIGHT) / (2 * np.max(np.abs([x, y]))) * 0.8 # 80% of max to fit comfortably
+    scale_factor = min(WIDTH, HEIGHT) / (2 * np.max(np.abs([x, y]))) * 0.8  # 80% of max to fit comfortably
     x *= scale_factor
     y *= scale_factor
     return x, y
+
 # Compute kappa for a segment, second endpoint influences next kappa
 def compute_segment_kappa(p1, p2, base_kappa=1.0, prev_kappa=1.0):
     x1, y1 = p1
     x2, y2 = p2
-    theta = np.sqrt((x2 - x1)**2 + (y2 - y1)**2) # Theta is distance
+    theta = np.sqrt((x2 - x1)**2 + (y2 - y1)**2)  # Theta is distance
     if theta < 1e-10:
         return prev_kappa
-    decay_factor = np.exp(-theta / WIDTH / 20.0) # Further reduced decay rate
+    decay_factor = np.exp(-theta / WIDTH / 20.0)  # Further reduced decay rate
     return prev_kappa * decay_factor * base_kappa
+
 # Recalculate kappas after changes (e.g., closure or node move) for consistency
 def recalculate_kappas():
     global previous_kappa
-    previous_kappa = kappas[0] # Start with first kappa
+    previous_kappa = kappas[0]  # Start with first kappa
     for i in range(1, len(drawing_points)):
-        kappas[i] = compute_segment_kappa(drawing_points[i-1], drawing_points[i], curvature, previous_kappa)
+        kappas[i] = compute_segment_kappa(drawing_points[i - 1], drawing_points[i], curvature, previous_kappa)
         previous_kappa = kappas[i]
+
 # Update 3D model on changes (e.g., height slider or curve update)
 def update_3d_model():
     global current_vertices, current_faces
@@ -511,6 +542,7 @@ def update_3d_model():
         ax_3d.set_zlabel('Z')
         ax_3d.set_title('3D User Model (Compound Curvature with End Caps)')
         fig_3d.canvas.draw()
+
 # Golden window calculation
 def compute_golden_window(x_spiral, y_spiral):
     idx_crossings = np.where(np.diff(np.sign(x_spiral - PURPLE_LINES[0] * WIDTH)))[0]
@@ -519,13 +551,7 @@ def compute_golden_window(x_spiral, y_spiral):
         y2 = y_spiral[idx_crossings[1]]
         return np.abs(y2 - y1), min(y1, y2), max(y1, y2)
     return 0, 0, 0
-# Compute vanishing point for a triangulation
-def compute_vanishing_point(tri_points, eye_distance=EYE_DISTANCE):
-    mid_x = np.mean([p[0] for p in tri_points])
-    mid_y = np.mean([p[1] for p in tri_points])
-    vx = mid_x
-    vy = HORIZON_HEIGHT + eye_distance * (mid_y - EYE_LINE) / WIDTH
-    return vx, vy
+
 # Redraw green curve
 def redraw_green_curve(is_closed=False):
     global green_curve_line
@@ -535,10 +561,11 @@ def redraw_green_curve(is_closed=False):
     if len(drawing_points) >= 2:
         adjusted_kappas = kappas.copy()
         if is_closed and len(adjusted_kappas) > 1:
-            adjusted_kappas[1] = 1.5 * adjusted_kappas[1] # Local kappa adjustment for ellipse conditions
+            adjusted_kappas[1] = 1.5 * adjusted_kappas[1]  # Local kappa adjustment for ellipse conditions
         x_green, y_green = custom_interoperations_green_curve(drawing_points, adjusted_kappas, is_closed=is_closed)
         green_curve_line, = ax_2d.plot(x_green, y_green, 'g-', label='Green Curve' if green_curve_line is None else None)
     fig_2d.canvas.draw()
+
 # Setup figures
 fig_2d = plt.figure(figsize=(14, 8))
 ax_2d = fig_2d.add_subplot(111)
@@ -559,20 +586,26 @@ ax_tangential = fig_controls.add_axes([0.2, 0.3, 0.6, 0.03])
 tangential_slider = Slider(ax_tangential, 'Tangential Chord', 0.0, 0.5, valinit=tangential_chord)
 ax_height_chord = fig_controls.add_axes([0.2, 0.2, 0.6, 0.03])
 height_chord_slider = Slider(ax_height_chord, 'Height Chord', 0.0, 0.5, valinit=height_chord)
+
 # Plot A3 page
 ax_2d.plot([0, WIDTH, WIDTH, 0, 0], [0, 0, HEIGHT, HEIGHT, 0], 'k-', label='A3 Landscape Page')
 for x in PURPLE_LINES:
     ax_2d.plot([x * WIDTH, x * WIDTH], [0, HEIGHT], 'm-', label='Purple Dividers' if x == PURPLE_LINES[0] else None)
+
 # Horizon line
 horizon_line, = ax_2d.plot([0, WIDTH], [HORIZON_HEIGHT, HORIZON_HEIGHT], 'b:', label='Horizon/Eye Line')
+
 # Golden spiral
 x_spiral, y_spiral = compute_golden_spiral()
 golden_spiral, = ax_2d.plot(x_spiral + WIDTH/2, y_spiral + HEIGHT/2, 'gold', label='Golden Spiral')
+
 # Golden window
 golden_window, y_min, y_max = compute_golden_window(x_spiral + WIDTH/2, y_spiral + HEIGHT/2)
 ax_2d.fill_between([PURPLE_LINES[0] * WIDTH - 0.05, PURPLE_LINES[0] * WIDTH + 0.05], y_min, y_max, color='yellow', alpha=0.5, label='Golden Window')
+
 # Ghost curve init
 ghost_curve, = ax_2d.plot([], [], 'g--', label='Ghost Curve Preview')
+
 # Control indicators in legend
 ax_2d.plot([], [], ' ', label='R: Toggle draw mode')
 ax_2d.plot([], [], 'b--', label='A: Toggle protractor')
@@ -586,6 +619,7 @@ ax_2d.plot([], [], ' ', label='H: Hide/show')
 ax_2d.plot([], [], ' ', label='E: Reset canvas')
 ax_2d.plot([], [], ' ', label='S: Export STL')
 ax_2d.plot([], [], 'k-', label='Curvature Slider (Controls window)')
+
 # Update curvature
 def update_curvature(val):
     global curvature
@@ -597,49 +631,63 @@ def update_curvature(val):
         if is_closed:
             update_3d_model()
     fig_2d.canvas.draw()
+
 curvature_slider.on_changed(update_curvature)
+
 # Update height
 def update_height(val):
     global height
     height = val
     if is_closed:
         update_3d_model()
+
 height_slider.on_changed(update_height)
+
 # Update rings
 def update_rings(val):
     global num_rings
     num_rings = int(val)
     if is_closed:
         update_3d_model()
+
 rings_slider.on_changed(update_rings)
+
 # Update fractal level
 def update_level(val):
     global fractal_level
     fractal_level = int(val)
     if is_closed:
         update_3d_model()
+
 level_slider.on_changed(update_level)
+
 # Update radial chord
 def update_radial(val):
     global radial_chord
     radial_chord = val
     if is_closed:
         update_3d_model()
+
 radial_slider.on_changed(update_radial)
+
 # Update tangential chord
 def update_tangential(val):
     global tangential_chord
     tangential_chord = val
     if is_closed:
         update_3d_model()
+
 tangential_slider.on_changed(update_tangential)
+
 # Update height chord
 def update_height_chord(val):
     global height_chord
     height_chord = val
     if is_closed:
         update_3d_model()
+
 height_chord_slider.on_changed(update_height_chord)
+
 # Toggle draw mode
 def toggle_draw(event):
     global draw_mode
@@ -647,6 +695,7 @@ def toggle_draw(event):
         draw_mode = not draw_mode
         print(f"Draw mode {'enabled' if draw_mode else 'disabled'}")
         fig_2d.canvas.draw()
+
 # Toggle protractor
 def toggle_protractor(event):
     global protractor_active
@@ -662,6 +711,7 @@ def toggle_protractor(event):
                 protractor_text = None
             protractor_points.clear()
         fig_2d.canvas.draw()
+
 # On click for protractor
 def on_click_protractor(event):
     global protractor_line, protractor_text, last_angle
@@ -684,6 +734,7 @@ def on_click_protractor(event):
             protractor_text = ax_2d.text(mid_x, mid_y, f'Angle: {angle:.2f}°', ha='center', va='center', fontsize=8, bbox=dict(facecolor='white', alpha=0.8))
             protractor_points.clear()
             fig_2d.canvas.draw()
+
 # Toggle ruler (measure)
 def toggle_ruler(event):
     global ruler_active
@@ -699,6 +750,7 @@ def toggle_ruler(event):
                 ruler_text = None
             ruler_points.clear()
         fig_2d.canvas.draw()
+
 # On click for ruler
 def on_click_ruler(event):
     global ruler_line, ruler_text
@@ -720,6 +772,7 @@ def on_click_ruler(event):
             ruler_text = ax_2d.text(mid_x, mid_y, f'Dist: {dist:.4f}', ha='center', va='center', fontsize=8, bbox=dict(facecolor='white', alpha=0.8))
             ruler_points.clear()
             fig_2d.canvas.draw()
+
 # Toggle dimension
 def toggle_dimension(event):
     global dimension_active
@@ -727,6 +780,7 @@ def toggle_dimension(event):
         dimension_active = not dimension_active
         print(f"Dimension tool {'enabled' if dimension_active else 'disabled'}")
         fig_2d.canvas.draw()
+
 # On click for dimension
 def on_click_dimension(event):
     if dimension_active and event.inaxes == ax_2d and event.button == 1:
@@ -740,6 +794,7 @@ def on_click_dimension(event):
             dim_text = ax_2d.text(mid_x, mid_y + 0.05, f'Len: {length:.4f}', ha='center', va='center', fontsize=8, bbox=dict(facecolor='white', alpha=0.8))
             dimension_labels.append(dim_text)
         fig_2d.canvas.draw()
+
 # Toggle pro mode (lock/unlock)
 def toggle_pro_mode(event):
     global pro_mode
@@ -747,33 +802,25 @@ def toggle_pro_mode(event):
         pro_mode = not pro_mode
         print(f"Pro mode {'locked' if pro_mode else 'unlocked'}")
         fig_2d.canvas.draw()
+
 # On pick event for nodes
 def on_pick(event):
     global selected_node_index
     artist = event.artist
     if artist in node_scatter:
         selected_node_index = node_scatter.index(artist)
-        artist.set_color('yellow') # Highlight selected node
+        artist.set_color('yellow')  # Highlight selected node
         if pro_mode:
             show_ghost_handles()
         fig_2d.canvas.draw()
-# Show ghost handles (theta points, midpoints between nodes)
-def on_pick(event):
-    global selected_node_index
-    artist = event.artist
-    if artist in node_scatter:
-        selected_node_index = node_scatter.index(artist)
-        artist.set_color('yellow') # Highlight selected node
-        if pro_mode:
-            show_ghost_handles()
-        fig_2d.canvas.draw()
+
 # Show ghost handles (theta points, midpoints between nodes)
 def show_ghost_handles():
     global ghost_handles
     for handle in ghost_handles:
         handle.remove()
     ghost_handles = []
-    num_points = len(drawing_points) if not is_closed else len(drawing_points) - 1 # Avoid double midpoint on close
+    num_points = len(drawing_points) if not is_closed else len(drawing_points) - 1  # Avoid double midpoint on close
     for i in range(num_points):
         next_i = (i + 1) % len(drawing_points) if is_closed else i + 1
         if next_i >= len(drawing_points):
@@ -783,15 +830,18 @@ def show_ghost_handles():
         handle = ax_2d.scatter(mid_x, mid_y, color='yellow', s=30, marker='o')
         ghost_handles.append(handle)
     fig_2d.canvas.draw()
+
 # On button press for dragging
 def on_button_press(event):
     global dragging
     if pro_mode and selected_node_index != -1 and event.inaxes == ax_2d and event.button == 1:
         dragging = True
+
 # On button release for dragging
 def on_button_release(event):
     global dragging
     dragging = False
+
 # On motion for dragging and preview
 def on_motion(event):
     global previous_kappa, dragging, selected_node_index
@@ -818,7 +868,7 @@ def on_motion(event):
                 preview_kappas[-1] = curvature
                 # Preview kappa1 adjustment for closure
                 last_theta = np.sqrt((drawing_points[-1][0] - preview_points[-1][0])**2 + (drawing_points[-1][1] - preview_points[-1][1])**2)
-                if last_theta < 1e-10: # Manage '0' snap error in preview
+                if last_theta < 1e-10:  # Manage '0' snap error in preview
                     last_theta = 1e-10
                 decay_factor = np.exp(-last_theta / WIDTH / 20.0)
                 preview_kappas[0] = preview_kappas[-1] * decay_factor * curvature
@@ -830,6 +880,7 @@ def on_motion(event):
         x_ghost, y_ghost = custom_interoperations_green_curve(preview_points, preview_kappas, is_closed=close_preview)
         ghost_curve.set_data(x_ghost, y_ghost)
         fig_2d.canvas.draw()
+
 # Generate G-code for the curve with variable speeds (for 2D plotting/CNC, scaled to mm)
 def generate_gcode(x, y, speeds, scale=297):
     """
@@ -848,9 +899,10 @@ def generate_gcode(x, y, speeds, scale=297):
     gcode += f"G0 X{x[0] * scale:.2f} Y{y[0] * scale:.2f}\n"
     # Linear moves with varying feedrate
     for i in range(1, len(x)):
-        feedrate = speeds[i] * 900 + 100 # Scale speed to 100-1000 mm/min
+        feedrate = speeds[i] * 900 + 100  # Scale speed to 100-1000 mm/min
         gcode += f"G1 X{x[i] * scale:.2f} Y{y[i] * scale:.2f} F{feedrate:.0f}\n"
     return gcode
+
 # Drawing mode: Add kappa nodes and update continuous greencurve
 def on_click_draw(event):
     global green_curve_line, selected_curve, previous_kappa, vanishing_points, current_vertices, current_faces, is_closed
@@ -871,15 +923,15 @@ def on_click_draw(event):
                 if dist_first < CLOSE_THRESHOLD:
                     # Adjust kappa1 based on last theta and kappa
                     last_theta = np.sqrt((drawing_points[-1][0] - drawing_points[0][0])**2 + (drawing_points[-1][1] - drawing_points[0][1])**2)
-                    if last_theta < 1e-10: # Manage '0' snap error
+                    if last_theta < 1e-10:  # Manage '0' snap error
                         last_theta = 1e-10
                     decay_factor = np.exp(-last_theta / WIDTH / 20.0)
-                    kappas[0] = kappas[-1] * decay_factor * curvature # Affect kappa1 with last kappa and decay
+                    kappas[0] = kappas[-1] * decay_factor * curvature  # Affect kappa1 with last kappa and decay
                     drawing_points.append(drawing_points[0])
-                    kappas.append(kappas[0]) # Last kappa inherits first kappa's theta (via same value)
-                    recalculate_kappas() # Recalculate for closure consistency
+                    kappas.append(kappas[0])  # Last kappa inherits first kappa's theta (via same value)
+                    recalculate_kappas()  # Recalculate for closure consistency
                     is_closed = True
-                    redraw_green_curve(is_closed=True) # Use closed NURKS for ellipse conditions
+                    redraw_green_curve(is_closed=True)  # Use closed NURKS for ellipse conditions
                     # Get closed curve
                     x_curve, y_curve = green_curve_line.get_data()
                     if np.hypot(x_curve[-1] - x_curve[0], y_curve[-1] - y_curve[0]) > 1e-5:
@@ -946,25 +998,27 @@ def on_click_draw(event):
                 selected_curve.set_linewidth(3.0)
                 print("Green curve selected")
                 fig_2d.canvas.draw()
+
 # Close polyhedron (manual trigger)
 def close_polyhedron(event):
     if event.key == 'c':
         print("Close via clicking near first point when ghosted")
+
 # Auto close on 'c'
 def auto_close(event):
     global is_closed, drawing_points, kappas, previous_kappa
     if event.key == 'c' and len(drawing_points) > 2:
         # Adjust kappa1 based on last theta and kappa
         last_theta = np.sqrt((drawing_points[-1][0] - drawing_points[0][0])**2 + (drawing_points[-1][1] - drawing_points[0][1])**2)
-        if last_theta < 1e-10: # Manage '0' snap error
+        if last_theta < 1e-10:  # Manage '0' snap error
             last_theta = 1e-10
         decay_factor = np.exp(-last_theta / WIDTH / 20.0)
-        kappas[0] = kappas[-1] * decay_factor * curvature # Affect kappa1 with last kappa and decay
+        kappas[0] = kappas[-1] * decay_factor * curvature  # Affect kappa1 with last kappa and decay
         drawing_points.append(drawing_points[0])
-        kappas.append(kappas[0]) # Last kappa inherits first kappa's theta (via same value)
-        recalculate_kappas() # Recalculate for closure consistency
+        kappas.append(kappas[0])  # Last kappa inherits first kappa's theta (via same value)
+        recalculate_kappas()  # Recalculate for closure consistency
         is_closed = True
-        redraw_green_curve(is_closed=True) # Use closed NURKS for ellipse conditions
+        redraw_green_curve(is_closed=True)  # Use closed NURKS for ellipse conditions
         # Get closed curve
         x_curve, y_curve = green_curve_line.get_data()
         if np.hypot(x_curve[-1] - x_curve[0], y_curve[-1] - y_curve[0]) > 1e-5:
@@ -994,6 +1048,7 @@ def auto_close(event):
         print("G-Code saved to model.gcode")
         print(gcode)
         fig_2d.canvas.draw()
+
 # Change to construction geometry
 def to_construction(event):
     global selected_curve
@@ -1003,6 +1058,7 @@ def to_construction(event):
         print("Green curve changed to construction geometry")
         selected_curve = None
         fig_2d.canvas.draw()
+
 # Hide/show
 def hide_show(event):
     global hidden_elements, selected_curve
@@ -1024,6 +1080,7 @@ def hide_show(event):
             hidden_elements.clear()
             print("All hidden elements shown")
         fig_2d.canvas.draw()
+
 # Reset canvas
 def reset_canvas(event):
     global drawing_points, kappas, previous_kappa, green_curve_line, vanishing_points, selected_curve, current_vertices, current_faces, last_angle, node_scatter, ghost_handles, is_closed, original_colors
@@ -1051,6 +1108,7 @@ def reset_canvas(event):
         display_pod_surface()
         print("Canvas reset")
         fig_2d.canvas.draw()
+
 # Compute curvature for continuity check
 def compute_curvature(x, y, t):
     dt = t[1] - t[0]
@@ -1062,14 +1120,16 @@ def compute_curvature(x, y, t):
     denominator = (dx_dt**2 + dy_dt**2)**1.5
     denominator = np.where(denominator == 0, 1e-10, denominator)
     return numerator / denominator
+
 # Generate base pod curve (closed for boundary surface, now 3D curve)
-def generate_pod_curve_closed(num_points=200, phase=0.0): # Increased num_points for better resolution
-    t = np.linspace(0, 2 * np.pi, num_points) # Full closed loop
-    r = radial_chord + tangential_chord * np.cos(6 * t + phase) # Flower-like top profile
+def generate_pod_curve_closed(num_points=200, phase=0.0):  # Increased num_points for better resolution
+    t = np.linspace(0, 2 * np.pi, num_points)  # Full closed loop
+    r = radial_chord + tangential_chord * np.cos(6 * t + phase)  # Flower-like top profile
     x = r * np.cos(t)
     y = r * np.sin(t)
-    z = height_chord * np.sin(6 * t + phase) # Add z variation for 3D curve
+    z = height_chord * np.sin(6 * t + phase)  # Add z variation for 3D curve
     return x, y, z
+
 # Function to compute normals
 def compute_normal(v1, v2, v3):
     vec1 = v2 - v1
@@ -1077,14 +1137,15 @@ def compute_normal(v1, v2, v3):
     normal = np.cross(vec1, vec2)
     norm = np.linalg.norm(normal)
     return normal / norm if norm != 0 else normal
+
 # Export current model to STL
 def export_stl():
     global current_vertices, current_faces
     if current_vertices is None or current_faces is None:
         print("No model to export")
         return
-    stl_data = b'\x00' * 80 # Header
-    stl_data += struct.pack('<I', len(current_faces)) # Number of triangles
+    stl_data = b'\x00' * 80  # Header
+    stl_data += struct.pack('<I', len(current_faces))  # Number of triangles
     for face in current_faces:
         v1 = current_vertices[face[0]]
         v2 = current_vertices[face[1]]
@@ -1094,7 +1155,7 @@ def export_stl():
         stl_data += struct.pack('<3f', *v1)
         stl_data += struct.pack('<3f', *v2)
         stl_data += struct.pack('<3f', *v3)
-        stl_data += b'\x00\x00' # Attribute byte count
+        stl_data += b'\x00\x00'  # Attribute byte count
     filename = 'model.stl'
     with open(filename, 'wb') as f:
         f.write(stl_data)
@@ -1102,14 +1163,16 @@ def export_stl():
     stl_base64 = base64.b64encode(stl_data).decode('utf-8')
     print("Base64 STL:")
     print(stl_base64)
+
 # Save STL on key press
 def save_stl(event):
     if event.key == 's':
         export_stl()
+
 # Display pod surface by default in 3D with curvature continuous end caps
 def display_pod_surface():
     global current_vertices, current_faces
-    x_curve, y_curve, z_curve = generate_pod_curve_closed(200) # Increased for resolution
+    x_curve, y_curve, z_curve = generate_pod_curve_closed(200)  # Increased for resolution
     current_vertices, current_faces = build_mesh(x_curve, y_curve, z_curve)
     verts = [[current_vertices[i] for i in f] for f in current_faces]
     ax_3d.add_collection3d(Poly3DCollection(verts, alpha=0.5, facecolors=cm.viridis(np.linspace(0, 1, len(verts)))))
@@ -1118,12 +1181,13 @@ def display_pod_surface():
     ax_3d.set_zlabel('Z')
     ax_3d.set_title('3D pod Projected Surface (Compound Curvature with End Caps)')
     fig_3d.canvas.draw()
+
 # Draw default pod ellipse as green curve on 2D canvas
 def draw_default_pod(ax, color='g'):
-    x, y, _ = generate_pod_curve_closed(num_points=36) # Increased to 36 for better flower
+    x, y, _ = generate_pod_curve_closed(num_points=36)  # Increased to 36 for better flower
     x_control = x[:-1]
     y_control = y[:-1]
-    scale = 0.6 # Scale for large curve
+    scale = 0.6  # Scale for large curve
     x_control *= scale
     y_control *= scale
     x_control += WIDTH / 2
@@ -1137,6 +1201,7 @@ def draw_default_pod(ax, color='g'):
     for i in range(len(x_interp)):
         speed = int(hashlib.sha256(f"{x_interp[i]}{y_interp[i]}".encode()).hexdigest()[-4:], 16) % 1000 / 1000.0
         print(f"Point {i}: ({x_interp[i]:.4f}, {y_interp[i]:.4f}), Speed: {speed:.4f}")
+
 # Add Mersenne elements to the plot
 # First A4 page (adjusted)
 ax_2d.plot([0, WIDTH/2, WIDTH/2, 0, 0], [0, 0, HEIGHT, HEIGHT, 0], 'k--', label='A4 Page 1')
@@ -1168,4 +1233,63 @@ for i, (x_end, y_end, x_start, y_start, x_flag, y_flag, label, freq) in enumerat
     ax_2d.plot([x_start, x_flag], [y_start, y_flag], 'k-', alpha=0.5)
     y_label = y_flag - (i % 5) * label_y_offset
     text = ax_2d.text(x_flag, y_label, label, ha='left', va='top', fontsize=6, rotation=45, picker=5)
-    harmonic_text = ax_2d.text(x_flag, y_label -
+    harmonic_text = ax_2d.text(x_flag, y_label - 0.05, f'{freq:.2f} Hz', ha='left', va='top', fontsize=6, color='blue', visible=show_harmonics)
+    annotation_objects.append(text)
+    harmonic_texts.append(harmonic_text)
+
+# Toggle harmonic frequency display
+def toggle_harmonics(event):
+    global show_harmonics
+    if event.key == 'f':
+        show_harmonics = not show_harmonics
+        for text in harmonic_texts:
+            text.set_visible(show_harmonics)
+        print(f"Harmonic frequencies {'shown' if show_harmonics else 'hidden'}")
+        fig_2d.canvas.draw()
+
+# Connect event handlers
+fig_2d.canvas.mpl_connect('key_press_event', toggle_draw)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_protractor)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_ruler)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_dimension)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_pro_mode)
+fig_2d.canvas.mpl_connect('key_press_event', close_polyhedron)
+fig_2d.canvas.mpl_connect('key_press_event', auto_close)
+fig_2d.canvas.mpl_connect('key_press_event', to_construction)
+fig_2d.canvas.mpl_connect('key_press_event', hide_show)
+fig_2d.canvas.mpl_connect('key_press_event', reset_canvas)
+fig_2d.canvas.mpl_connect('key_press_event', save_stl)
+fig_2d.canvas.mpl_connect('key_press_event', toggle_harmonics)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_protractor)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_ruler)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_dimension)
+fig_2d.canvas.mpl_connect('button_press_event', on_click_draw)
+fig_2d.canvas.mpl_connect('pick_event', on_pick)
+fig_2d.canvas.mpl_connect('button_press_event', on_button_press)
+fig_2d.canvas.mpl_connect('button_release_event', on_button_release)
+fig_2d.canvas.mpl_connect('motion_notify_event', on_motion)
+
+# Draw default pod curve
+draw_default_pod(ax_2d)
+
+# Set plot limits and labels
+ax_2d.set_xlim(-0.1, WIDTH + 0.1)
+ax_2d.set_ylim(-0.2, HEIGHT + 0.1)
+ax_2d.set_xlabel('X (Normalized A3 Width)')
+ax_2d.set_ylabel('Y (Normalized A3 Height)')
+ax_2d.set_title(f'Mersenne Prime Curves with Green Segment\n{scale_key_text}\n{scale_label}')
+ax_2d.legend(loc='upper right', fontsize=6)
+ax_2d.grid(True)
+
+# Display pod surface by default
+display_pod_surface()
+
+# Export to HTML if mpld3 is available
+if MPLD3_AVAILABLE:
+    output = mpld3.fig_to_html(fig_2d)
+    with open('mersenne_plot.html', 'w') as f:
+        f.write(output)
+    print("Interactive plot saved to mersenne_plot.html")
+
+# Show plots
+plt.show()
