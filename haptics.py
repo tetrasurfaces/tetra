@@ -16,8 +16,18 @@ class Haptics:
         self.mode = intensity
         print(f"Haptic shake: {intensity}")
 
+# Module-level functions to match tetra_forge.py's expectations
+def buzz(intensity):
+    """Wrapper for Haptics.buzz."""
+    haptics = Haptics()
+    haptics.buzz(intensity)
+
+def shake(intensity):
+    """Wrapper for Haptics.shake."""
+    haptics = Haptics()
+    haptics.shake(intensity)
+
 # Example usage
 if __name__ == "__main__":
-    haptic = Haptics()
-    haptic.buzz("low")
-    haptic.shake("hard")
+    buzz("low")
+    shake("hard")
