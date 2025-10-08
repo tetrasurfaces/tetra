@@ -1,43 +1,144 @@
-# Tetra Forge
-Tetra Forge is a Python-based welding simulation prototype designed to model the process of preparing, welding, and testing structural beams. It simulates key aspects of welding, including mesh generation, surface preparation, welding techniques, post-processing, and quality testing, with support for haptic feedback and telemetry logging.
-Features
+# Kappasha: Tetrasurfaces Welding Simulation
+Overview
+The tetrasurfaces project, part of the kappasha repository, is a Python-based welding simulation framework designed to model the preparation, welding, and testing of structural beams, with advanced features for porosity modeling, supply chain vector tracking, and quantum-inspired synchronization. It builds on the Tetra Forge prototype, extending it with tetrahedral meshing, IPFS-based navigation, and enhanced telemetry for case hardening, hydrogen cracking prevention, and fleet logistics. The project is dual-licensed under Apache-2.0 and AGPL-3.0-or-later, with Beau Ayres as the copyright holder.
 
-Mesh Generation: Creates tetrahedral meshes for beams (e.g., W21x62) using solid.py.
-Telemetry Logging: Logs welding parameters and environmental conditions via forge_telemetry.py.
+## Features
+
+Mesh Generation: Creates tetrahedral meshes for beams (e.g., W21x62) using solid.py and tetra.py.
+Porosity Modeling: Simulates void formation and martensite layers with porosity_hashing.py and fractal_tetra.py.
+Welding Simulation: Supports stick, TIG, and acetylene welding (welding.py), with electrode behavior (electrode.py), backstep sequences, and crane sway effects (crane_sway.py).
+Telemetry Logging: Logs welding parameters, quench profiles, and IPFS navigation via rig.py (replaces telemetry.py).
+Supply Chain Vectors: Tracks material flow from forge to weld with particle_vector.py and fleet logistics with fleet_vector.py.
+IPFS Navigation: Implements decentralized route caching for fleet vectors in rig.py.
+Quantum-Inspired Synchronization: Ensures rig telemetry consistency with quantum_sync.py.
 Surface Preparation: Handles grinding, marking, and markup with prep_tools.py.
-Welding Simulation: Supports stick and TIG welding with welding.py.
-Haptic Feedback: Provides haptic buzz and shake feedback for errors or guidance using haptics.py.
+Haptic Feedback: Provides buzz and shake feedback for operator guidance using haptics.py.
 Path Recording: Records and replays welder hand paths with maptics.py.
-Stabilization: Manages gyroscopic stabilization for torch movements with rig.py.
-Vibration Modeling: Simulates damping and oscillations with friction.py.
-Post-Processing: Includes case hardening, anodizing, and painting via post_process.py.
-Testing: Performs flex and dye penetration tests with test_tools.py.
+Stabilization: Manages gyroscopic stabilization for torch and jib movements with rig.py and gyrogimbal.py.
+Vibration Modeling: Simulates damping and oscillations with frictionvibe.py and friction.py.
+Post-Processing: Includes case hardening, anodizing, quenching, and painting via post_process.py.
+Testing: Performs flex and dye penetration tests with test_tools.py, validated by test_simulation.py.
 
-Installation
+## Directory Structure
+/home/yeetbow/kappasha/
+├── tetrasurfaces/
+│   ├── __init__.py
+│   ├── tetra.py
+│   ├── kappa_grid.py
+│   ├── fractal_tetra.py
+│   ├── ribit.py
+│   ├── ribitstructure.py
+│   ├── gyrogimbal.py
+│   ├── frictionvibe.py
+│   ├── rig.py
+│   ├── porosity_hashing.py
+│   ├── electrode.py
+│   ├── quantum_sync.py
+│   ├── fleet_vector.py
+│   ├── crane_sway.py
+│   ├── particle_vector.py
+│   ├── tetra/
+│   │   ├── __init__.py
+│   │   ├── forge_telemetry.py
+│   │   ├── solid.py
+│   │   ├── haptics.py
+│   │   ├── welding.py
+│   │   ├── rig.py
+│   │   ├── friction.py
+│   │   ├── maptics.py
+│   │   ├── prep_tools.py
+│   │   ├── test_tools.py
+│   │   └── post_process.py
+│   └── tests/
+│       ├── __init__.py
+│       └── test_simulation.py
+├── README.md
+└── LICENSE
 
-Clone the repository:git clone https://github.com/tetrasurfaces/tetra.git
-cd tetra
+## Installation
+
+Clone the repository:git clone https://github.com/tetrasurfaces/kappasha.git
+cd kappasha/tetrasurfaces
 
 
-Install dependencies (if any, e.g., numpy, scipy):pip install -r requirements.txt
+Install dependencies:pip install numpy pytest
+
+If a requirements.txt is provided, use:pip install -r requirements.txt
 
 
-Run the simulation:python tetra_forge.py
+Set the Python path:export PYTHONPATH=$PYTHONPATH:/home/yeetbow/kappasha/tetrasurfaces
 
 
 
-Usage
-The main script (tetra_forge.py) runs the simulation with default parameters:
+## Usage
+Run individual modules or the test suite:
+# Run rig simulation with telemetry
+python rig.py
 
-Environment: garage
-Material: mild_steel
-Welding style: stick
-Post-processing: case_harden
+# Run test suite
+pytest tests/test_simulation.py -v
 
-To customize, modify the main function or call individual functions (beam, prep, weld, post, test) with desired parameters.
-License
-Dual-licensed under Apache-2.0 and AGPL-3.0-or-later. See individual files for details. Proprietary extensions are reserved, and unauthorized use is prohibited without permission from Beau Ayres.
-Contributing
-Contributions are welcome! Please submit pull requests or open issues for bugs, features, or patent-related extensions.
-Contact
-For inquiries, contact Beau Ayres (details TBD).
+Example: Simulate a welding sequence with porosity logging and crane sway:
+from rig import Rig
+from crane_sway import simulate_crane_sway
+from porosity_hashing import porosity_hashing
+import numpy as np
+
+rig = Rig(log_file="weld_log.csv")
+rig.tilt("left", 20)
+rig.stabilize()
+displacements = simulate_crane_sway(beam_length=384, steps=5)
+grid = np.random.rand(10, 10, 10)
+voids = porosity_hashing(grid, void_threshold=0.3)
+rig.log("Porosity analysis", voids=len(voids))
+rig.log_quench([900, 700, 500, 300, 100, 20])
+rig.log_ipfs_navigation([(0, 10, 100), (1, 12, 95)], cache_moves=2)
+
+To customize, modify module parameters (e.g., welding style, material, or environment) or call specific functions (e.g., electrode.simulate_electrode, quantum_sync.quantum_sync).
+## Testing
+The test suite (test_simulation.py) validates:
+
+Mesh generation (kappa_grid, solid)
+Porosity hashing (porosity_hashing)
+Electrode behavior (electrode)
+Crane sway (crane_sway)
+Particle and fleet vectors (particle_vector, fleet_vector)
+Quantum synchronization (quantum_sync)
+Welding, telemetry, and rig control (rig, welding, forge_telemetry)
+Surface preparation, haptics, and post-processing (prep_tools, haptics, post_process)
+
+## Run tests:
+cd tetrasurfaces
+pytest tests/test_simulation.py -v
+
+Recent Changes
+
+October 2025:
+Replaced telemetry.py with rig.py, combining rig control (tilt, stabilize) with telemetry logging for welding, quenching, and IPFS navigation.
+Added new modules: porosity_hashing.py (void tracking), electrode.py (arc welding), quantum_sync.py (rig synchronization), fleet_vector.py (caster logistics), crane_sway.py (sway simulation), particle_vector.py (supply chain vectors).
+Updated test_simulation.py with tests for new modules and improved error reporting.
+Fixed ModuleNotFoundError: kappa_grid in tetra.py by ensuring correct imports.
+Enhanced ribitstructure.py for porosity stiffening in case-hardened steel.
+Integrated Tetra Forge features, including surface preparation, haptic feedback, and post-processing.
+
+
+
+## License
+Copyright 2025 Beau Ayres. Dual-licensed under:
+
+Apache License, Version 2.0: Permits proprietary use without requiring derivative works to be open-sourced.
+GNU Affero General Public License v3.0 or later: Requires derivative works to be open-sourced if used over a network.
+
+Proprietary extensions are reserved, and unauthorized copying, distribution, or modification is prohibited without express written permission from Beau Ayres. See the LICENSE file for details.
+## Contributing
+Contributions are welcome under the dual license terms. To contribute:
+
+## Fork the repository.
+Create a branch (git checkout -b feature/your-feature).
+Commit changes (git commit -m "Add your feature").
+Push to the branch (git push origin feature/your-feature).
+Open a pull request.
+
+For bugs, features, or patent-related extensions, open an issue on GitHub.
+## Contact
+For inquiries, contact Beau Ayres (details TBD) or open an issue at https://github.com/tetrasurfaces/kappasha.
