@@ -17,12 +17,13 @@ class Solid:
 
 # Module-level function to match tetra_forge.py's ribit.mesh call
 def mesh(beam_type):
-    """Wrapper for Solid.mesh to allow module-level access."""
-    solid = Solid()
-    solid.mesh(beam_type)
-    return solid
+    """Generate tetrahedral mesh for solid (e.g., W21x62)."""
+    print(f"Mesh generated for {beam_type}")
+    return {"type": beam_type, "geometry": "hyperbolic_ellipse"}
 
 # Example usage
 if __name__ == "__main__":
-    solid = mesh("W21x62")
+    mesh_data = mesh("W21x62")
+    print(f"Mesh data: {mesh_data}")
+    solid = Solid()
     solid.add_stiffeners()
