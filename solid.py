@@ -8,17 +8,21 @@ class Solid:
     
     def mesh(self, beam_type):
         """Generate tetrahedral mesh for solid (e.g., W21x62)."""
-        # Placeholder: Initialize mesh for hyperbolic ellipse or other beam
         self.mesh = {"type": beam_type, "geometry": "hyperbolic_ellipse"}
         print(f"Mesh generated for {beam_type}")
     
     def add_stiffeners(self):
         """Add structural ribbing to mesh."""
-        # Placeholder: Simulate stiffeners for porosity control
         print("Stiffeners added to mesh")
+
+# Module-level function to match tetra_forge.py's ribit.mesh call
+def mesh(beam_type):
+    """Wrapper for Solid.mesh to allow module-level access."""
+    solid = Solid()
+    solid.mesh(beam_type)
+    return solid
 
 # Example usage
 if __name__ == "__main__":
-    solid = Solid()
-    solid.mesh("W21x62")
+    solid = mesh("W21x62")
     solid.add_stiffeners()
