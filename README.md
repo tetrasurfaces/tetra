@@ -20,7 +20,7 @@ Post-Processing: Includes case hardening, anodizing, quenching, and painting via
 Testing: Performs flex and dye penetration tests with test_tools.py, validated by test_simulation.py.
 
 ## Directory Structure
-/home/yeetbow/kappasha/
+/home/user/kappasha/
 ├── tetrasurfaces/
 │   ├── __init__.py
 │   ├── tetra.py
