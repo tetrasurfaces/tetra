@@ -40,7 +40,7 @@ class Rig:
     
     def stabilize(self):
         """Stabilize against crane sway or wind."""
-        self.torque = 0  # Reset torque for stabilization
+        self.torque = 0
         self.log("Stabilized rig", torque=self.torque)
         print("Stabilized rig")
     
@@ -62,15 +62,15 @@ class Rig:
     
     def rust_probe(self):
         """Simulate rust detection probe."""
-        return 0  # Placeholder: No rust detected
+        return 0
     
     def depth_error(self):
         """Simulate depth error check."""
-        return False  # Placeholder: No depth error
+        return False
     
     def crack_location(self):
         """Simulate crack location detection."""
-        return None  # Placeholder: No crack detected
+        return None
     
     def log_quench(self, temp_profile, porosity_threshold=0.2):
         """Log temperature-drop profile during oil quenching."""
@@ -91,6 +91,12 @@ class Rig:
                 self.log(f"Evict move", hash=ipfs_hashes[i - cache_moves][:8])
                 ipfs_hashes.pop(0)
         return ipfs_hashes
+    
+    def log_voxel_metrics(self, voxel_grid, void_count):
+        """Log rhombohedral voxel metrics."""
+        void_density = void_count / voxel_grid.size
+        self.log("Voxel analysis", void_density=void_density, void_count=void_count)
+        print(f"Logged voxel metrics: {void_count} voids, density {void_density:.4f}")
 
 # Example usage
 if __name__ == "__main__":
@@ -101,3 +107,5 @@ if __name__ == "__main__":
     rig.flag("hydrogen")
     rig.log_quench([900, 700, 500, 300, 100, 20])
     rig.log_ipfs_navigation([(0, 10, 100), (1, 12, 95)], cache_moves=2)
+    grid = np.random.rand(10, 10, 10)
+    rig.log_voxel_metrics(grid, void_count=50)
