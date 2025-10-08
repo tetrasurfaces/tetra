@@ -30,7 +30,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import telemetry
+import forge_telemetry as telemetry
 import solid as ribit
 import rig as gyrogimbal
 import friction as frictionvibe
