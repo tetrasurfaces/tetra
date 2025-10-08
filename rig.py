@@ -98,6 +98,13 @@ class Rig:
         void_density = void_count / voxel_grid.size
         self.log("Voxel analysis", void_density=void_density, void_count=void_count)
         print(f"Logged voxel metrics: {void_count} voids, density {void_density:.4f}")
+    
+    def log_mirage(self, heat_temp=900, air_temp=30, bend_radius=0.002):
+        """Log and correct for heat-induced mirage effects in range finding."""
+        delta_temp = heat_temp - air_temp
+        correction = delta_temp * bend_radius  # Simplified correction factor
+        self.log("Mirage correction", heat_temp=heat_temp, air_temp=air_temp, correction=correction)
+        print(f"Mirage correction applied: {correction:.4f} rad/m")
 
 # Example usage
 if __name__ == "__main__":
@@ -110,3 +117,4 @@ if __name__ == "__main__":
     rig.log_ipfs_navigation([(0, 10, 100), (1, 12, 95)], cache_moves=2)
     grid = np.random.rand(10, 10, 10)
     rig.log_voxel_metrics(grid, void_count=50)
+    rig.log_mirage(heat_temp=900, air_temp=30)
