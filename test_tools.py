@@ -5,6 +5,8 @@
 def flex_until_break(load, ram):
     """Simulate flex test until failure."""
     print(f"Flex test: load={load}, ram={ram}")
+    # Placeholder: Return False for no failure (to resolve failure variable)
+    return False
 
 def ink_test(dye, uv):
     """Perform dye penetration test for defects."""
