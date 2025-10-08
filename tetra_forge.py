@@ -31,10 +31,10 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import telemetry
-import ribit
-import gyrogimbal
-import frictionvibe
-import ghosthand
+import solid as ribit
+import rig as gyrogimbal
+import friction as frictionvibe
+import maptics as ghosthand
 import haptics
 from welding import weave, TIG, acetylene
 
@@ -46,7 +46,7 @@ def beam(env='garage', material='mild_steel'):
     telemetry.log('material_set')
 
 def prep(surface='burl'):
-    if rust_probe() > 2:
+    if telemetry.rust_probe() > 2:
         angle_grinder(30, 20000, coolant='water')
         swarf_vacuum()  # model curls, sparks
     acetylene_mark(low_oxy=True, duration=0.8)  # carbon line
@@ -61,7 +61,7 @@ def weld(pass_num=1, style='stick', env='garage'):
         vacuum = True
         no_flux = True
     telemetry.log(f'pass{pass_num}', puddle='sphere')
-    if depth_error():
+    if telemetry.depth_error():
         haptics.buzz('low')
     else:
         haptics.buzz('silent')
@@ -77,7 +77,7 @@ def post(process='case_harden'):
 
 def test():
     flex_until_break(load='5mm/min', ram='hydraulic')
-    if crack_location() == 'root':
+    if telemetry.crack_location() == 'root':
         telemetry.flag('hydrogen')
     ink_test('red_dye', uv=True)  # peng detection
     if failure:
