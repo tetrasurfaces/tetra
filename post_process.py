@@ -1,6 +1,6 @@
 # post_process.py
 # Copyright 2025 Beau Ayres
-# Licensed under Apache-2.0 OR AGPL-3.0-or-later
+# Licensed under AGPL-3.0-or-later
 
 def anodize(acid=None, temp=None, volts=None, dye=None, seal=False):
     """Anodize surface with optional dye and seal."""
