@@ -1,4 +1,6 @@
-# Placeholder for future dependencies
+pandas>=2.2.3
+pytest>=8.3.3
+# Optional dependencies for future enhancements
 # numpy>=1.26.4
 # scipy>=1.14.1
 # opencv-python>=4.10.0
