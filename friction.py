@@ -1,6 +1,6 @@
 # friction.py
 # Copyright 2025 Beau Ayres
-# Licensed under Apache-2.0 OR AGPL-3.0-or-later
+# Licensed under AGPL-3.0-or-later
 
 class Friction:
     def __init__(self):
