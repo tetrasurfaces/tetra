@@ -1,6 +1,6 @@
 # prep_tools.py
 # Copyright 2025 Beau Ayres
-# Licensed under Apache-2.0 OR AGPL-3.0-or-later
+# Licensed under AGPL-3.0-or-later
 
 def angle_grinder(angle, rpm, coolant):
     """Simulate angle grinding for surface prep."""
