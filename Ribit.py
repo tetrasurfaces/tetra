@@ -1,14 +1,5 @@
 # Ribit.py
 # Copyright 2025 Beau Ayres
-# Licensed under the Apache License, Version 2.0 (the "License");
-# you may not use this file except in compliance with the License.
-# You may obtain a copy of the License at
-# http://www.apache.org/licenses/LICENSE-2.0
-# Unless required by applicable law or agreed to in writing, software
-# distributed under the License is distributed on an "AS IS" BASIS,
-# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
-# See the License for the specific language governing permissions and
-# limitations under the License.
 # Proprietary Software - All Rights Reserved
 #
 # This software is proprietary and confidential. Unauthorized copying,
@@ -36,7 +27,7 @@ from mpl_toolkits.mplot3d import Axes3D
 import hashlib
 from PIL import Image
 from green_curve import bspline_basis, custom_interoperations_green_curve
-
+from friction_vibe import friction_vibe
 
 def ribit_generate(data):
     ribit_hash = hashlib.sha256(data.encode()).digest()
@@ -55,16 +46,6 @@ class TetraRibit:
         self.num_layers = 50
         self.z_levels = np.linspace(0, self.height, self.num_layers)
         self.arms_3d = []
-
-    def friction_vibe(self, pos1, pos2, kappa=0.3):
-        dist = np.linalg.norm(pos1 - pos2)
-        if dist < 0.1:
-            vibe = np.sin(2 * np.pi * dist / 0.05)
-            gyro = np.cross(pos1, pos2) / dist if dist > 0 else np.zeros(3)
-            warp = 1 / (1 + kappa * dist)
-            return vibe * warp, gyro
-        else:
-            return 0, np.zeros(3)
 
     def gyro_gimbal(self, pos1, pos2, tilt=np.array([0.1,0.1,0.1]), kappa=0.3):
         dist = np.linalg.norm(pos1 - pos2)
