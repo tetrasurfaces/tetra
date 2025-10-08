@@ -2,18 +2,31 @@
 # Copyright 2025 Beau Ayres
 # Licensed under Apache-2.0 OR AGPL-3.0-or-later
 
+import pandas as pd
+import os
+from datetime import datetime
+
 class Telemetry:
-    def __init__(self):
+    def __init__(self, log_file="weld_log.csv"):
         self.log_data = []
+        self.log_file = log_file
+        # Initialize CSV with headers if it doesn't exist
+        if not os.path.exists(log_file):
+            pd.DataFrame(columns=["timestamp", "event", "params"]).to_csv(log_file, index=False)
     
     def log(self, event, **kwargs):
-        """Log welding or environmental data with timestamp."""
-        self.log_data.append({"event": event, "params": kwargs})
+        """Log welding or environmental data with timestamp to memory and CSV."""
+        timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.log_data.append({"timestamp": timestamp, "event": event, "params": kwargs})
         print(f"Logged: {event}, {kwargs}")
+        # Append to CSV
+        df = pd.DataFrame([{"timestamp": timestamp, "event": event, "params": str(kwargs)}])
+        df.to_csv(self.log_file, mode='a', header=False, index=False)
     
     def flag(self, issue):
         """Flag issues like hydrogen cracks or porosity."""
         print(f"Flagged issue: {issue}")
+        self.log(f"flag_{issue}", issue=issue)
     
     def rust_probe(self):
         """Detect rust on surface via RGB pixel analysis."""
