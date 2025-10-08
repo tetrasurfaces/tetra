@@ -1,13 +1,13 @@
 # Kappasha: Tetrasurfaces Welding Simulation
-Overview
-The tetrasurfaces project, part of the kappasha repository, is a Python-based welding simulation framework designed to model the preparation, welding, and testing of structural beams, with advanced features for porosity modeling, supply chain vector tracking, and quantum-inspired synchronization. It builds on the Tetra Forge prototype, extending it with tetrahedral meshing, IPFS-based navigation, and enhanced telemetry for case hardening, hydrogen cracking prevention, and fleet logistics. The project is dual-licensed under Apache-2.0 and AGPL-3.0-or-later, with Beau Ayres as the copyright holder.
+## Overview
+The tetrasurfaces project, part of the kappasha repository, is a Python-based welding simulation framework designed to model the preparation, welding, and testing of structural beams, with advanced features for porosity modeling, supply chain vector tracking, and quantum-inspired synchronization. It builds on the Tetra Forge prototype, extending it with rhombohedral voxel meshing, IPFS-based navigation, and enhanced telemetry for case hardening, hydrogen cracking prevention, and fleet logistics. The project is dual-licensed under Apache-2.0 and AGPL-3.0-or-later, with Beau Ayres as the copyright holder.
 
 ## Features
 
-Mesh Generation: Creates tetrahedral meshes for beams (e.g., W21x62) using solid.py and tetra.py.
-Porosity Modeling: Simulates void formation and martensite layers with porosity_hashing.py and fractal_tetra.py.
+Mesh Generation: Creates tetrahedral and rhombohedral voxel meshes for beams (e.g., W21x62) using solid.py, tetra.py, and rhombus_voxel.py.
+Porosity Modeling: Simulates void formation and martensite layers with porosity_hashing.py, fractal_tetra.py, and rhombohedral voxels.
 Welding Simulation: Supports stick, TIG, and acetylene welding (welding.py), with electrode behavior (electrode.py), backstep sequences, and crane sway effects (crane_sway.py).
-Telemetry Logging: Logs welding parameters, quench profiles, and IPFS navigation via rig.py (replaces telemetry.py).
+Telemetry Logging: Logs welding parameters, quench profiles, IPFS navigation, and voxel metrics via rig.py (replaces telemetry.py).
 Supply Chain Vectors: Tracks material flow from forge to weld with particle_vector.py and fleet logistics with fleet_vector.py.
 IPFS Navigation: Implements decentralized route caching for fleet vectors in rig.py.
 Quantum-Inspired Synchronization: Ensures rig telemetry consistency with quantum_sync.py.
@@ -20,7 +20,7 @@ Post-Processing: Includes case hardening, anodizing, quenching, and painting via
 Testing: Performs flex and dye penetration tests with test_tools.py, validated by test_simulation.py.
 
 ## Directory Structure
-/home/user/kappasha/
+/home/yeetbow/kappasha/
 ├── tetrasurfaces/
 │   ├── __init__.py
 │   ├── tetra.py
@@ -37,6 +37,7 @@ Testing: Performs flex and dye penetration tests with test_tools.py, validated b
 │   ├── fleet_vector.py
 │   ├── crane_sway.py
 │   ├── particle_vector.py
+│   ├── rhombus_voxel.py
 │   ├── tetra/
 │   │   ├── __init__.py
 │   │   ├── forge_telemetry.py
@@ -66,7 +67,7 @@ Install dependencies:pip install numpy pytest
 If a requirements.txt is provided, use:pip install -r requirements.txt
 
 
-Set the Python path:export PYTHONPATH=$PYTHONPATH:/home/yeetbow/kappasha/tetrasurfaces
+Set the Python path:export PYTHONPATH=$PYTHONPATH:/home/user/kappasha/tetrasurfaces
 
 
 
@@ -78,27 +79,25 @@ python rig.py
 # Run test suite
 pytest tests/test_simulation.py -v
 
-Example: Simulate a welding sequence with porosity logging and crane sway:
+## Example: Simulate a welding sequence with rhombohedral voxel porosity and crane sway:
 from rig import Rig
 from crane_sway import simulate_crane_sway
-from porosity_hashing import porosity_hashing
-import numpy as np
+from rhombus_voxel import generate_rhombus_voxel
 
 rig = Rig(log_file="weld_log.csv")
 rig.tilt("left", 20)
 rig.stabilize()
 displacements = simulate_crane_sway(beam_length=384, steps=5)
-grid = np.random.rand(10, 10, 10)
-voids = porosity_hashing(grid, void_threshold=0.3)
-rig.log("Porosity analysis", voids=len(voids))
+voxel_grid, voids = generate_rhombus_voxel(grid_size=10)
+rig.log_voxel_metrics(voxel_grid, len(voids))
 rig.log_quench([900, 700, 500, 300, 100, 20])
 rig.log_ipfs_navigation([(0, 10, 100), (1, 12, 95)], cache_moves=2)
 
-To customize, modify module parameters (e.g., welding style, material, or environment) or call specific functions (e.g., electrode.simulate_electrode, quantum_sync.quantum_sync).
-## Testing
+To customize, modify module parameters (e.g., welding style, material, or rhombus angle) or call specific functions (e.g., electrode.simulate_electrode, quantum_sync.quantum_sync).
+Testing
 The test suite (test_simulation.py) validates:
 
-Mesh generation (kappa_grid, solid)
+Mesh generation (kappa_grid, solid, rhombus_voxel)
 Porosity hashing (porosity_hashing)
 Electrode behavior (electrode)
 Crane sway (crane_sway)
@@ -111,14 +110,16 @@ Surface preparation, haptics, and post-processing (prep_tools, haptics, post_pro
 cd tetrasurfaces
 pytest tests/test_simulation.py -v
 
-Recent Changes
+## Recent Changes
 
-October 2025:
-Replaced telemetry.py with rig.py, combining rig control (tilt, stabilize) with telemetry logging for welding, quenching, and IPFS navigation.
-Added new modules: porosity_hashing.py (void tracking), electrode.py (arc welding), quantum_sync.py (rig synchronization), fleet_vector.py (caster logistics), crane_sway.py (sway simulation), particle_vector.py (supply chain vectors).
-Updated test_simulation.py with tests for new modules and improved error reporting.
+## October 2025:
+Replaced telemetry.py with rig.py, combining rig control (tilt, stabilize) with telemetry logging for welding, quenching, IPFS navigation, and voxel metrics.
+Added new modules: porosity.py (void tracking), electrode.py (arc welding), quantum_sync.py (rig synchronization), fleet_vector.py (caster logistics), crane_sway.py (sway simulation), particle_vector.py (supply chain vectors), rhombus_voxel.py (rhombohedral voxel meshing).
+Updated fractal_tetra.py to support rhombohedral voxels for porosity simulations.
+Enhanced rig.py to log voxel-based metrics (e.g., void density).
+Updated test_simulation.py with tests for new modules, including rhombus voxels, and improved error reporting.
 Fixed ModuleNotFoundError: kappa_grid in tetra.py by ensuring correct imports.
-Enhanced ribitstructure.py for porosity stiffening in case-hardened steel.
+Enhanced ribs_tructure.py for porosity stiffening in case-hardened steel.
 Integrated Tetra Forge features, including surface preparation, haptic feedback, and post-processing.
 
 
