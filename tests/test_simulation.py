@@ -4,16 +4,20 @@
 
 import pytest
 import os
-from ..forge_telemetry import log, flag, rust_probe, depth_error, crack_location
-from ..solid import mesh
-from ..haptics import buzz, shake
-from ..welding import weave, TIG, acetylene
-from ..rig import Rig
-from ..friction import Friction
-from ..maptics import Maptics
-from ..prep_tools import angle_grinder, swarf_vacuum, acetylene_mark, auto_markup
-from ..test_tools import flex_until_break, ink_test
-from ..post_process import anodize, viscosity_check, pack, quench, paint
+import sys
+# Fallback to add tetra directory to sys.path
+sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+
+from tetra.forge_telemetry import log, flag, rust_probe, depth_error, crack_location
+from tetra.solid import mesh
+from tetra.haptics import buzz, shake
+from tetra.welding import weave, TIG, acetylene
+from tetra.rig import Rig
+from tetra.friction import Friction
+from tetra.maptics import Maptics
+from tetra.prep_tools import angle_grinder, swarf_vacuum, acetylene_mark, auto_markup
+from tetra.test_tools import flex_until_break, ink_test
+from tetra.post_process import anodize, viscosity_check, pack, quench, paint
 
 def test_forge_telemetry_log(tmp_path):
     """Test logging to CSV."""
