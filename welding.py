@@ -1,6 +1,6 @@
 # welding.py
 # Copyright 2025 Beau Ayres
-# Licensed under Apache-2.0 OR AGPL-3.0-or-later
+# Licensed under AGPL-3.0-or-later
 
 def weave(pattern, speed, arc):
     """Execute weld weave pattern (e.g., christmas_tree)."""
