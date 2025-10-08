@@ -1,4 +1,5 @@
-# Copyright Todd Hutchinson, Beau Ayres, Anonymous
+# nurks_surface.py
+# Copyright 2025 Beau Ayres
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
 # You may obtain a copy of the License at
@@ -12,7 +13,22 @@
 #
 # This software is proprietary and confidential. Unauthorized copying,
 # distribution, modification, or use is strictly prohibited without
-# express written permission from Todd Hutchinson and Beau Ayres.
+# express written permission from Beau Ayres.
+#
+# AGPL-3.0-or-later licensed
+#
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU Affero General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
+# GNU Affero General Public License for more details.
+#
+# You should have received a copy of the GNU Affero General Public License
+# along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import numpy as np
 import hashlib
@@ -20,7 +36,7 @@ import struct
 import math
 import mpmath
 mpmath.mp.dps = 19  # Precision for φ, π.
-from kappasha import kappasha256
+from KappaSHA256 import kappasha256
 from ribit import ribit_generate
 from kappawise import kappa_coord
 from green_curve import bspline_basis, custom_interoperations_green_curve
