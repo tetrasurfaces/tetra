@@ -21,9 +21,6 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-# Existing frictionvibe.py content (assumed)
-# ... (previous code)
-
 from telemetry import log  # Assume telemetry.py has log function
 
 def track_kappa_vector(particle_path, drag=0.05):
