@@ -73,11 +73,11 @@ class Rig:
         """Simulate crack location detection."""
         return None
     
-    def log_quench(self, temp_profile, porosity_threshold=0.2):
-        """Log temperature-drop profile during oil quenching."""
+    def log_quench(self, temp_profile, porosity_threshold=0.2, temp_threshold=200):
+        """Log temperature-drop profile during oil quenching with dynamic porosity."""
         for t, temp in enumerate(temp_profile):
-            voids = (200 - temp) / 200 * porosity_threshold if temp < 200 else 0
-            self.log(f"Quench step {t}", temp=temp, void_growth=voids * 100)
+            voids = (temp_threshold - temp) / temp_threshold * porosity_threshold if temp < temp_threshold else 0
+            self.log(f"Quench step {t}", temp=temp, void_growth=voids * 100, porosity_threshold=porosity_threshold)
         print("Quench log complete")
     
     def log_ipfs_navigation(self, vector_data, cache_moves=5):
@@ -105,6 +105,16 @@ class Rig:
         correction = delta_temp * bend_radius  # Simplified correction factor
         self.log("Mirage correction", heat_temp=heat_temp, air_temp=air_temp, correction=correction)
         print(f"Mirage correction applied: {correction:.4f} rad/m")
+    
+    def log_centrifugal_coriolis(self, centrifugal_force, coriolis_displacement, total_displacement):
+        """Log centrifugal and Coriolis effects from centrifuge simulations."""
+        self.log("Centrifugal-Coriolis simulation", centrifugal_force=centrifugal_force, coriolis_displacement=coriolis_displacement, total_displacement=total_displacement)
+        print(f"Logged centrifugal force: {centrifugal_force:.4f} N, Coriolis displacement: {coriolis_displacement:.4f} m, Total: {total_displacement:.4f} m")
+    
+    def log_paint_mixing(self, viscosity, solvent_level, emulsion_distance):
+        """Log two-pack paint mixing metrics."""
+        self.log("Paint mixing", viscosity=viscosity, solvent_level=solvent_level, emulsion_distance=emulsion_distance)
+        print(f"Logged paint viscosity: {viscosity:.4f} Pa·s, solvent level: {solvent_level:.4f}, emulsion distance: {emulsion_distance:.4f} m")
 
 # Example usage
 if __name__ == "__main__":
@@ -118,3 +128,5 @@ if __name__ == "__main__":
     grid = np.random.rand(10, 10, 10)
     rig.log_voxel_metrics(grid, void_count=50)
     rig.log_mirage(heat_temp=900, air_temp=30)
+    rig.log_centrifugal_coriolis(centrifugal_force=0.01, coriolis_displacement=1e-6, total_displacement=0.010001)
+    rig.log_paint_mixing(viscosity=0.0015, solvent_level=0.18, emulsion_distance=0.01)
