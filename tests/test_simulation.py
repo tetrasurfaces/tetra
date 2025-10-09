@@ -1,4 +1,3 @@
-# test_simulation.py
 # Copyright 2025 Beau Ayres
 # Proprietary Software - All Rights Reserved
 #
@@ -38,6 +37,13 @@ from quantum_sync import quantum_sync
 from fleet_vector import simulate_fleet_vector
 from rig import Rig
 from rhombus_voxel import generate_rhombus_voxel
+from swing_fog import model_swing_fog
+from seeing_layer import simulate_seeing_layer
+from gravity import simulate_gravity
+from coriolis import simulate_coriolis
+from centrifuge import simulate_centrifuge_emulsification
+from rotomolding import simulate_rotomolding
+from solvents import simulate_two_pack_paint
 from tetra.solid import mesh
 from tetra.haptics import buzz, shake
 from tetra.welding import weave, TIG, acetylene
@@ -75,7 +81,7 @@ def test_electrode_stability():
     """Test electrode simulation for arc stability."""
     result = simulate_electrode(voltage=180, amperage=50, arc_length=3, electrode_gap=2)
     assert result['arc_stability'] > 0.7, f"Arc stability too low: {result['arc_stability']}"
-    assert result['hydrogen_content'] < 4, f"Hydrogen content too high: {result['hydrogen_content']}"
+    assert result['hydrogen_content'] < 4, f"Hydrogen content too high: {result['hydrogen_content']"
 
 def test_crane_sway():
     """Test crane sway simulation."""
@@ -131,6 +137,61 @@ def test_forge_telemetry_probes():
     assert rig.depth_error() is False, "Depth error should be False"
     assert rig.crack_location() is None, "Crack location should be None"
 
+def test_swing_fog():
+    """Test swing fog refraction modeling."""
+    bend = model_swing_fog(distance=40, index=1.002)
+    assert bend > 0, "Bend radius should be positive"
+
+def test_seeing_layer():
+    """Test seeing layer blur simulation."""
+    blur = simulate_seeing_layer(heat_delta=0.5, angle=45)
+    assert blur > 0, "Blur radius should be positive"
+
+def test_rig_mirage(tmp_path):
+    """Test mirage correction logging."""
+    log_file = tmp_path / "weld_log.csv"
+    rig = Rig(log_file=str(log_file))
+    rig.log_mirage(heat_temp=900, air_temp=30)
+    assert os.path.exists(log_file), "Log file not created"
+    with open(log_file, 'r') as f:
+        content = f.read()
+        assert "Mirage correction" in content, "Mirage log not created"
+
+def test_gravity():
+    """Test gravity simulation."""
+    displ = simulate_gravity(steps=5)
+    assert len(displ) == 5, "Unexpected number of gravity displacements"
+    assert all(d > 0 for d in displ), "Displacements should be positive"
+
+def test_coriolis():
+    """Test Coriolis simulation."""
+    forces = simulate_coriolis(steps=5)
+    assert len(forces) == 5, "Unexpected number of Coriolis forces"
+    assert all(isinstance(f, np.ndarray) for f in forces), "Forces should be numpy arrays"
+
+def test_centrifuge_emulsification():
+    """Test centrifuge emulsification simulation."""
+    distances = simulate_centrifuge_emulsification(steps=5)
+    assert len(distances) == 5, "Unexpected number of centrifuge distances"
+    assert all(d >= 0 for d in distances), "Distances should be non-negative"
+
+def test_rotomolding():
+    """Test rotomolding simulation."""
+    forces = simulate_rotomolding(steps=5)
+    assert len(forces) == 5, "Unexpected number of rotomolding forces"
+    assert all(f >= 0 for f in forces), "Forces should be non-negative"
+
+def test_two_pack_paint(tmp_path):
+    """Test two-pack paint simulation."""
+    log_file = tmp_path / "weld_log.csv"
+    viscosity, solvent = simulate_two_pack_paint(steps=5)
+    assert len(viscosity) == 5, "Unexpected viscosity profile length"
+    assert solvent >= 0, "Solvent fraction should be non-negative"
+    assert os.path.exists(log_file), "Log file not created"
+    with open(log_file, 'r') as f:
+        content = f.read()
+        assert "Two-pack paint mixing" in content, "Paint mixing not logged"
+
 def test_solid_mesh():
     """Test mesh generation."""
     mesh_data = mesh("W21x62")
@@ -155,7 +216,7 @@ def test_friction():
     friction = Friction()
     friction.damp(0.5)
     friction.oscillation()
-    assert friction.damping == 0.5, f"Unexpected damping value: {friction.damping}"
+    assert friction.damping == 0.5, f"Unexpected damping value: {friction.damping"
 
 def test_maptics():
     """Test path recording."""
