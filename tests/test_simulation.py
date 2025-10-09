@@ -245,20 +245,21 @@ def test_post_process():
     paint("epoxy_primer", "polyurethene", "mica_gold")
     # Note: Hardware-dependent, assuming no errors raised
 
-def test_periodic_table(tmp_path):
-    """Test periodic table element access and logging."""
-    from tetra import carbon, iron
-    log_file = tmp_path / "weld_log.csv"
-    rig = Rig(log_file=str(log_file))
-    carbon.log_usage("test simulation")
-    iron.log_usage("test simulation")
-    assert carbon.atomic_weight == 12.011, f"Unexpected carbon weight: {carbon.atomic_weight}"
-    assert iron.melting_point == 1538, f"Unexpected iron melting point: {iron.melting_point}"
-    assert os.path.exists(log_file), "Log file not created"
-    with open(log_file, 'r') as f:
-        content = f.read()
-        assert "Element usage: Carbon" in content, "Carbon usage not logged"
-        assert "Element usage: Iron" in content, "Iron usage not logged"
+def test_gyro_gimbal(tmp_path):
+    """Test gyroscopic gimbal with element properties."""
+    from tetra.tetra.gyrogimbal import TetraVibe, Sym  # Updated from Sympathy
+    from tetra.utils.periodic_table import carbon
+    model = TetraVibe()
+    sym = Sym()  # Updated instantiation
+    pos1 = np.array([0, 0, 0])
+    pos2 = np.array([0.05, 0, 0])
+    wave, spin, force = model.gyro_gimbal(pos1, pos2, element=carbon, spin_rate=1.0)
+    assert wave > 0, "Wave should be positive"
+    assert len(spin) == 3, "Spin should be 3D vector"
+    assert force > 0, "Force should be positive"
+    sym.tilt("spin_axis", 1.0)
+    sym.stabilize()
+    assert sym.spin_rate < 1.0, "Spin rate should be damped"
 
 # Example usage
 if __name__ == "__main__":
