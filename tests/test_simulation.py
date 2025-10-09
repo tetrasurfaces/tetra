@@ -245,6 +245,21 @@ def test_post_process():
     paint("epoxy_primer", "polyurethene", "mica_gold")
     # Note: Hardware-dependent, assuming no errors raised
 
+def test_periodic_table(tmp_path):
+    """Test periodic table element access and logging."""
+    from tetra import carbon, iron
+    log_file = tmp_path / "weld_log.csv"
+    rig = Rig(log_file=str(log_file))
+    carbon.log_usage("test simulation")
+    iron.log_usage("test simulation")
+    assert carbon.atomic_weight == 12.011, f"Unexpected carbon weight: {carbon.atomic_weight}"
+    assert iron.melting_point == 1538, f"Unexpected iron melting point: {iron.melting_point}"
+    assert os.path.exists(log_file), "Log file not created"
+    with open(log_file, 'r') as f:
+        content = f.read()
+        assert "Element usage: Carbon" in content, "Carbon usage not logged"
+        assert "Element usage: Iron" in content, "Iron usage not logged"
+
 # Example usage
 if __name__ == "__main__":
     pytest.main(["-v"])
