@@ -29,10 +29,10 @@ import numpy as np
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from tetra import kappa_grid
-from porosity_hashing import porosity_hashing
+from porosity import porosity_hashing
 from electrode import simulate_electrode
 from crane_sway import simulate_crane_sway
-from particle_vector import track_particle_vector
+from particles import track_particle_vector
 from quantum_sync import quantum_sync
 from fleet_vector import simulate_fleet_vector
 from rig import Rig
@@ -81,7 +81,7 @@ def test_electrode_stability():
     """Test electrode simulation for arc stability."""
     result = simulate_electrode(voltage=180, amperage=50, arc_length=3, electrode_gap=2)
     assert result['arc_stability'] > 0.7, f"Arc stability too low: {result['arc_stability']}"
-    assert result['hydrogen_content'] < 4, f"Hydrogen content too high: {result['hydrogen_content']"
+    assert result['hydrogen_content'] < 4, f"Hydrogen content too high: {result['hydrogen_content']}"
 
 def test_crane_sway():
     """Test crane sway simulation."""
@@ -170,10 +170,11 @@ def test_coriolis():
     assert all(isinstance(f, np.ndarray) for f in forces), "Forces should be numpy arrays"
 
 def test_centrifuge_emulsification():
-    """Test centrifuge emulsification simulation."""
-    distances = simulate_centrifuge_emulsification(steps=5)
-    assert len(distances) == 5, "Unexpected number of centrifuge distances"
-    assert all(d >= 0 for d in distances), "Distances should be non-negative"
+    """Test centrifuge emulsification with Coriolis simulation."""
+    displacements = simulate_centrifuge_emulsification(steps=5, latitude=35.0)
+    assert len(displacements) == 5, "Unexpected number of centrifuge displacements"
+    assert all(d >= 0 for d in displacements), "Displacements should be non-negative"
+    assert any(abs(d) > 0 for d in displacements), "Some displacement should occur"
 
 def test_rotomolding():
     """Test rotomolding simulation."""
@@ -216,7 +217,7 @@ def test_friction():
     friction = Friction()
     friction.damp(0.5)
     friction.oscillation()
-    assert friction.damping == 0.5, f"Unexpected damping value: {friction.damping"
+    assert friction.damping == 0.5, f"Unexpected damping value: {friction.damping}"
 
 def test_maptics():
     """Test path recording."""
