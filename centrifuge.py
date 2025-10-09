@@ -56,4 +56,3 @@ def simulate_centrifuge_emulsification(droplet_radius=1e-6, density_diff=100, vi
 if __name__ == "__main__":
     distances = simulate_centrifuge_emulsification()
     print(f"Centrifuge separation distances: {distances[:5]}...")
-```
