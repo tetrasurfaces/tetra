@@ -22,7 +22,7 @@ Centrifugal Modeling: Simulates rotational molding (rotomolding.py) and centrifu
 Two-Pack Paint Systems: Models mixing and solvent evaporation for epoxy or polyurethane paints with solvents.py.
 Optical Effects: Models refractive index changes for non-line-of-sight welding with swing_fog.py and seeing_layer.py.
 
-Directory Structure
+## Directory Structure
 /home/user/kappasha/
 ├── tetrasurfaces/
 │   ├── __init__.py
