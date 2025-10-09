@@ -22,7 +22,7 @@
 
 import numpy as np
 from rig import Rig
-from tetra.gyrogimbal import Rig as GyroRig  # Adjusted import for gyro_gimbal.py in tetra/
+from tetra.gyrogimbal import Sym as GyroRig  # Adjusted import for gyro_gimbal.py in tetra/
 
 class Element:
     """Base class for periodic table elements with space-related properties."""
