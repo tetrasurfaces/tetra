@@ -27,7 +27,7 @@ import hashlib
 import numpy as np
 from datetime import datetime
 from tetra.utils.periodic_table import Element  # Import Element base class
-from tetra.gyrogimbal import Rig as GyroRig  # Import for gyroscopic modeling
+from tetra.gyrogimbal import Sym as GyroRig # Import for gyroscopic modeling
 
 class Rig:
     def __init__(self, log_file="weld_log.csv"):
