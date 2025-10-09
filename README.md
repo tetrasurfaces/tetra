@@ -22,60 +22,10 @@ Centrifugal Modeling: Simulates rotational molding (rotomolding.py) and centrifu
 Two-Pack Paint Systems: Models mixing and solvent evaporation for epoxy or polyurethane paints with solvents.py.
 Optical Effects: Models refractive index changes for non-line-of-sight welding with swing_fog.py and seeing_layer.py.
 
-## Directory Structure
-/home/user/kappasha/
-
-├── tetrasurfaces/
-
-│   ├── __init__.py
-│   ├── tetra.py
-│   ├── kappa_grid.py
-│   ├── fractal_tetra.py
-│   ├── ribit.py
-│   ├── ribstructure.py
-│   ├── gyro_gimbal.py
-│   ├── friction_vibe.py
-│   ├── rig.py
-│   ├── porosity.py
-│   ├── electrode.py
-│   ├── sync.py
-│   ├── fleet_vector.py
-│   ├── crane_sway.py
-│   ├── particles.py
-│   ├── rhombus_voxel.py
-│   ├── swing_fog.py
-│   ├── seeing_layer.py
-│   ├── gravity.py
-│   ├── coriolis.py
-│   ├── centrifuge.py
-│   ├── rotomolding.py
-│   ├── solvents.py
-│   ├── tetra/
-
-│   │   ├── __init__.py
-│   │   ├── forge_telemetry.py
-│   │   ├── solid.py
-│   │   ├── haptics.py
-│   │   ├── welding.py
-│   │   ├── rig.py
-│   │   ├── friction.py
-│   │   ├── maptics.py
-│   │   ├── prep_tools.py
-│   │   ├── test_tools.py
-│   │   └── post_process.py
-
-│   └── tests/
-
-│       ├── __init__.py
-│       └── test_simulation.py
-
-├── README.md
-└── LICENSE
-
 ## Installation
 
-Clone the repository:git clone https://github.com/tetrasurfaces/kappasha.git
-cd kappasha/tetrasurfaces
+Clone the repository:git clone https://github.com/tetrasurfaces/tetra.git
+cd tetra
 
 
 Install dependencies:pip install numpy pytest
@@ -83,7 +33,7 @@ Install dependencies:pip install numpy pytest
 If a requirements.txt is provided, use:pip install -r requirements.txt
 
 
-Set the Python path:export PYTHONPATH=$PYTHONPATH:/home/user/kappasha/tetrasurfaces
+Set the Python path:export PYTHONPATH=$PYTHONPATH:/home/user/tetrasurfaces/tetra
 
 
 
