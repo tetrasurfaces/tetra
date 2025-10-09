@@ -24,7 +24,9 @@ Optical Effects: Models refractive index changes for non-line-of-sight welding w
 
 ## Directory Structure
 /home/user/kappasha/
+
 ├── tetrasurfaces/
+
 │   ├── __init__.py
 │   ├── tetra.py
 │   ├── kappa_grid.py
@@ -49,6 +51,7 @@ Optical Effects: Models refractive index changes for non-line-of-sight welding w
 │   ├── rotomolding.py
 │   ├── solvents.py
 │   ├── tetra/
+
 │   │   ├── __init__.py
 │   │   ├── forge_telemetry.py
 │   │   ├── solid.py
@@ -60,9 +63,12 @@ Optical Effects: Models refractive index changes for non-line-of-sight welding w
 │   │   ├── prep_tools.py
 │   │   ├── test_tools.py
 │   │   └── post_process.py
+
 │   └── tests/
+
 │       ├── __init__.py
 │       └── test_simulation.py
+
 ├── README.md
 └── LICENSE
 
