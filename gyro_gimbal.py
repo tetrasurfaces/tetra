@@ -56,6 +56,14 @@ class Sym:
         self.spin_rate = 0.0 if abs(self.spin_rate) < 1e-6 else self.spin_rate * 0.9  # Damping
         self.tilt_angle = np.where(abs(self.tilt_angle) < 1e-6, 0.0, self.tilt_angle * 0.9)
         print("Stabilizing gyro, spin rate reduced to", self.spin_rate)
+    
+    def get_spin_vector(self):
+        """Return the current 3D spin vector based on spin_rate and tilt_angle."""
+        # Combine spin_rate (scalar) with tilt_angle (vector) to form a 3D spin vector
+        spin_magnitude = self.spin_rate
+        spin_direction = self.tilt_angle / np.linalg.norm(self.tilt_angle) if np.linalg.norm(self.tilt_angle) > 0 else np.array([1.0, 0.0, 0.0])
+        spin_vector = spin_magnitude * spin_direction
+        return spin_vector
 
 class TetraVibe:
     """Class for modeling vibrational and gyroscopic effects at atomic scales."""
@@ -128,6 +136,8 @@ if __name__ == "__main__":
     print(f"Wave: {wave}, Spin: {spin}, Force: {force:.4e}")
     sym.tilt("spin_axis", 1.5)
     sym.stabilize()
+    spin_vector = sym.get_spin_vector()
+    print(f"Spin Vector: {spin_vector}")
     pos3 = np.array([0.15, 0, 0])  # far fake
     wave_far, spin_far, force_far = model.gyro_gimbal(pos1, pos3)
     print(f"Far wave: {wave_far}, Far spin: {spin_far}, Far force: {force_far:.4e}")
