@@ -37,18 +37,18 @@ Set the Python path:export PYTHONPATH=$PYTHONPATH:/home/user/tetrasurfaces/tetra
 
 
 
-# Usage
+## Usage
 Run individual modules or the test suite:
 # Run centrifuge emulsification
 python centrifuge.py
 
-# Run rotomolding simulation
+## Run rotomolding simulation
 python rotomolding.py
 
-# Run two-pack paint simulation
+## Run two-pack paint simulation
 python solvents.py
 
-# Run test suite
+## Run test suite
 pytest tests/test_simulation.py -v
 
 Example: Simulate paint mixing with centrifuge emulsification and rotomolding:
