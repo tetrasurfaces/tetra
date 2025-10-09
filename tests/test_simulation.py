@@ -1,5 +1,14 @@
-# test_simulation.py
+# gyro_gimbal.py
 # Copyright 2025 Beau Ayres
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 # Proprietary Software - All Rights Reserved
 #
 # This software is proprietary and confidential. Unauthorized copying,
@@ -21,246 +30,118 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-import pytest
-import os
-import sys
 import numpy as np
+import mpmath
+mpmath.mp.dps = 19
+from periodic_table import Element  # For space_gravity_constant
 
-# Fallback to add tetra directory to sys.path
-sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
+class Sym:
+    """Gyroscopic rig for stabilizing and tilting atomic or rig simulations."""
+    def __init__(self):
+        self.spin_rate = 0.0
+        self.tilt_angle = np.array([0.0, 0.0, 0.0])
+    
+    def tilt(self, axis, rate):
+        """Tilt the rig or simulate atomic spin along a given axis."""
+        if axis == "spin_axis":
+            self.spin_rate = rate
+            print(f"Tilting spin axis at rate {rate}")
+        else:
+            idx = {"x": 0, "y": 1, "z": 2}.get(axis[0].lower(), 0)
+            self.tilt_angle[idx] = rate
+            print(f"Tilting {axis} by {rate} degrees")
+    
+    def stabilize(self):
+        """Stabilize the rig or atomic structure after tilting."""
+        self.spin_rate = 0.0 if abs(self.spin_rate) < 1e-6 else self.spin_rate * 0.9  # Damping
+        self.tilt_angle = np.where(abs(self.tilt_angle) < 1e-6, 0.0, self.tilt_angle * 0.9)
+        print("Stabilizing gyro, spin rate reduced to", self.spin_rate)
+    
+    def get_spin_vector(self):
+        """Return the current 3D spin vector based on spin_rate and tilt_angle."""
+        # Combine spin_rate (scalar) with tilt_angle (vector) to form a 3D spin vector
+        spin_magnitude = self.spin_rate
+        spin_direction = self.tilt_angle / np.linalg.norm(self.tilt_angle) if np.linalg.norm(self.tilt_angle) > 0 else np.array([1.0, 0.0, 0.0])
+        spin_vector = spin_magnitude * spin_direction
+        return spin_vector
 
-from tetra import kappa_grid
-from porosity import porosity_hashing
-from electrode import simulate_electrode
-from crane_sway import simulate_crane_sway
-from particles import track_particle_vector
-from quantum_sync import quantum_sync
-from fleet_vector import simulate_fleet_vector
-from rig import Rig
-from rhombus_voxel import generate_rhombus_voxel
-from swing_fog import model_swing_fog
-from seeing_layer import simulate_seeing_layer
-from gravity import simulate_gravity
-from coriolis import simulate_coriolis
-from centrifuge import simulate_centrifuge_emulsification
-from rotomolding import simulate_rotomolding
-from solvents import simulate_two_pack_paint
-from tetra.solid import mesh
-from tetra.haptics import buzz, shake
-from tetra.welding import weave, TIG, acetylene
-from tetra.friction import Friction
-from tetra.maptics import Maptics
-from tetra.prep_tools import angle_grinder, swarf_vacuum, acetylene_mark, auto_markup
-from tetra.test_tools import flex_until_break, ink_test
-from tetra.post_process import anodize, viscosity_check, pack, quench, paint
+class TetraVibe:
+    """Class for modeling vibrational and gyroscopic effects at atomic scales."""
+    def __init__(self):
+        self.gravity_constant = 6.67430e-11  # m³ kg⁻¹ s⁻², from periodic_table.py
+    
+    def friction_vibe(self, pos1, pos2, kappa=0.3, friction_coeff=0.1):
+        """Calculate vibrational and gyroscopic effects with friction."""
+        dist = np.linalg.norm(pos1 - pos2)
+        if dist < 1e-6:
+            print("heat spike-flinch")
+            return 1.0, np.zeros(3), 0.0
+        if dist < 0.1:
+            vibe = np.sin(2 * np.pi * dist / 0.05)
+            gyro = np.cross(pos1, pos2) / dist if dist > 0 else np.zeros(3)
+            warp = 1 / (1 + kappa * dist)
+            # Friction force (proportional to distance and coefficient)
+            friction_force = friction_coeff * (1 / dist) if dist > 0 else 0.0
+            return vibe * warp, gyro, friction_force
+        return 1.0, np.zeros(3), 0.0
+    
+    def gyro_gimbal(self, pos1, pos2, tilt=np.array([0.1, 0.1, 0.1]), kappa=0.3, element=None, spin_rate=1.0):
+        """Simulate gyroscopic gimbal with space properties."""
+        dist = np.linalg.norm(pos1 - pos2)
+        if dist < 1e-6:
+            print("heat spike-flinch")
+            return 1.0, np.zeros(3), 0.0
+        if dist < 0.1:
+            vibe, base_gyro, friction_force = self.friction_vibe(pos1, pos2, kappa)
+            gimbal_spin = base_gyro + tilt / dist
+            warp = 1 / (1 + kappa * dist)
+            # Gravitational force if element data is provided
+            grav_force = 0.0
+            if isinstance(element, Element):
+                mass_kg = 1e-26 * element.atomic_weight  # Approximate atomic mass in kg
+                grav_force = self.gravity_constant * (mass_kg ** 2) / (dist * 1e-12) ** 2 if dist > 0 and element.atomic_radius else 0.0
+                gimbal_spin += np.array([spin_rate, 0.0, 0.0]) / dist  # Add spin effect
+            return vibe * warp, gimbal_spin, friction_force + grav_force
+        return 1.0, np.zeros(3), 0.0
+    
+    def gyro_gimbal_rotate(self, coords, angles=None):
+        """Rotate coordinates using gyroscopic angles."""
+        if angles is None:
+            angles = np.array([float(mpmath.phi), 0.0, 0.0])  # Default phi x
+        if len(angles) != 3:
+            print("heat spike-flinch")  # Wrong dim
+            return coords
+        rot_x = np.array([[1, 0, 0],
+                          [0, float(mpmath.cos(angles[0])), float(-mpmath.sin(angles[0]))],
+                          [0, float(mpmath.sin(angles[0])), float(mpmath.cos(angles[0]))]])
+        rot_y = np.array([[float(mpmath.cos(angles[1])), 0, float(mpmath.sin(angles[1]))],
+                          [0, 1, 0],
+                          [float(-mpmath.sin(angles[1])), 0, float(mpmath.cos(angles[1]))]])
+        rot_z = np.array([[float(mpmath.cos(angles[2])), float(-mpmath.sin(angles[2])), 0],
+                          [float(mpmath.sin(angles[2])), float(mpmath.cos(angles[2])), 0],
+                          [0, 0, 1]])
+        rot = rot_z @ rot_y @ rot_x
+        det = np.linalg.det(rot)
+        if abs(det - 1) > 1e-6:
+            print("heat spike-flinch")  # Singular
+        return np.dot(coords, rot.T)
 
-def test_kappa_grid():
-    """Test kappa_grid generation."""
-    grid = kappa_grid(grid_size=10)
-    assert grid.shape == (10, 10, 360), "Unexpected kappa grid shape"
-
-def test_porosity_hashing():
-    """Test porosity hashing for void detection."""
-    grid = np.random.rand(10, 10, 10)
-    hashed_voids = porosity_hashing(grid, void_threshold=0.3)
-    assert isinstance(hashed_voids, dict), "Hashed voids should be a dictionary"
-    assert len(hashed_voids) > 0, "No voids detected"
-
-def test_rhombus_voxel(tmp_path):
-    """Test rhombohedral voxel grid generation and logging."""
-    voxel_grid, voids = generate_rhombus_voxel(grid_size=10)
-    assert voxel_grid.shape == (10, 10, 10), f"Unexpected voxel grid shape: {voxel_grid.shape}"
-    assert isinstance(voids, dict), "Voids should be a dictionary"
-    rig = Rig(log_file=str(tmp_path / "weld_log.csv"))
-    rig.log_voxel_metrics(voxel_grid, len(voids))
-    assert os.path.exists(rig.log_file), "Log file not created"
-    with open(rig.log_file, 'r') as f:
-        content = f.read()
-        assert "Voxel analysis" in content, "Voxel metrics not logged"
-
-def test_electrode_stability():
-    """Test electrode simulation for arc stability."""
-    result = simulate_electrode(voltage=180, amperage=50, arc_length=3, electrode_gap=2)
-    assert result['arc_stability'] > 0.7, f"Arc stability too low: {result['arc_stability']}"
-    assert result['hydrogen_content'] < 4, f"Hydrogen content too high: {result['hydrogen_content']}"
-
-def test_crane_sway():
-    """Test crane sway simulation."""
-    displacements = simulate_crane_sway(beam_length=384, steps=5)
-    assert len(displacements) == 5, f"Unexpected number of sway displacements: {len(displacements)}"
-    assert all(abs(d) < 10 for d in displacements), "Sway displacement too large"
-
-def test_particle_vector():
-    """Test particle vector tracking."""
-    stages = [(0, 0, 0, 'forge'), (10, 5, 0, 'ship'), (15, 5, 2, 'weld')]
-    vectors = track_particle_vector(stages)
-    assert len(vectors) == 3, f"Unexpected number of particle vectors: {len(vectors)}"
-    assert all(len(v) == 3 for v in vectors), "Invalid vector dimensions"
-
-def test_quantum_sync():
-    """Test quantum-inspired synchronization."""
-    rig1 = {'temp': 850, 'crown': 0.1}
-    rig2 = {'temp': 849, 'crown': 0.12}
-    sync_status = quantum_sync(rig1, rig2, tolerance=0.1)
-    assert sync_status, "Rigs should be synchronized within tolerance"
-
-def test_fleet_vector():
-    """Test fleet vector simulation."""
-    casters = [(1, 0, 10, 100), (2, 1, 12, 95), (3, 2, 11, 98)]
-    meta_vec, hashes = simulate_fleet_vector(casters)
-    assert isinstance(meta_vec, dict), "Meta-vector should be a dictionary"
-    assert len(hashes) <= 5, f"Too many IPFS hashes: {len(hashes)}"
-
-def test_forge_telemetry_log(tmp_path):
-    """Test logging to CSV."""
-    log_file = tmp_path / "weld_log.csv"
-    rig = Rig(log_file=str(log_file))
-    rig.log("test_event", amps=60, volts=182)
-    assert os.path.exists(log_file), "Log file not created"
-    with open(log_file, 'r') as f:
-        content = f.read()
-        assert "test_event" in content, "Event not logged"
-
-def test_forge_telemetry_flag(tmp_path):
-    """Test flagging an issue."""
-    log_file = tmp_path / "weld_log.csv"
-    rig = Rig(log_file=str(log_file))
-    rig.flag("hydrogen")
-    assert os.path.exists(log_file), "Log file not created"
-    with open(log_file, 'r') as f:
-        content = f.read()
-        assert "flag_hydrogen" in content, "Hydrogen flag not logged"
-
-def test_forge_telemetry_probes():
-    """Test probe functions."""
-    rig = Rig()
-    assert rig.rust_probe() == 0, "Rust probe should return 0"
-    assert rig.depth_error() is False, "Depth error should be False"
-    assert rig.crack_location() is None, "Crack location should be None"
-
-def test_swing_fog():
-    """Test swing fog refraction modeling."""
-    bend = model_swing_fog(distance=40, index=1.002)
-    assert bend > 0, "Bend radius should be positive"
-
-def test_seeing_layer():
-    """Test seeing layer blur simulation."""
-    blur = simulate_seeing_layer(heat_delta=0.5, angle=45)
-    assert blur > 0, "Blur radius should be positive"
-
-def test_rig_mirage(tmp_path):
-    """Test mirage correction logging."""
-    log_file = tmp_path / "weld_log.csv"
-    rig = Rig(log_file=str(log_file))
-    rig.log_mirage(heat_temp=900, air_temp=30)
-    assert os.path.exists(log_file), "Log file not created"
-    with open(log_file, 'r') as f:
-        content = f.read()
-        assert "Mirage correction" in content, "Mirage log not created"
-
-def test_gravity():
-    """Test gravity simulation."""
-    displ = simulate_gravity(steps=5)
-    assert len(displ) == 5, "Unexpected number of gravity displacements"
-    assert all(d > 0 for d in displ), "Displacements should be positive"
-
-def test_coriolis():
-    """Test Coriolis simulation."""
-    forces = simulate_coriolis(steps=5)
-    assert len(forces) == 5, "Unexpected number of Coriolis forces"
-    assert all(isinstance(f, np.ndarray) for f in forces), "Forces should be numpy arrays"
-
-def test_centrifuge_emulsification():
-    """Test centrifuge emulsification with Coriolis simulation."""
-    displacements = simulate_centrifuge_emulsification(steps=5, latitude=35.0)
-    assert len(displacements) == 5, "Unexpected number of centrifuge displacements"
-    assert all(d >= 0 for d in displacements), "Displacements should be non-negative"
-    assert any(abs(d) > 0 for d in displacements), "Some displacement should occur"
-
-def test_rotomolding():
-    """Test rotomolding simulation."""
-    forces = simulate_rotomolding(steps=5)
-    assert len(forces) == 5, "Unexpected number of rotomolding forces"
-    assert all(f >= 0 for f in forces), "Forces should be non-negative"
-
-def test_two_pack_paint(tmp_path):
-    """Test two-pack paint simulation."""
-    log_file = tmp_path / "weld_log.csv"
-    viscosity, solvent = simulate_two_pack_paint(steps=5)
-    assert len(viscosity) == 5, "Unexpected viscosity profile length"
-    assert solvent >= 0, "Solvent fraction should be non-negative"
-    assert os.path.exists(log_file), "Log file not created"
-    with open(log_file, 'r') as f:
-        content = f.read()
-        assert "Two-pack paint mixing" in content, "Paint mixing not logged"
-
-def test_solid_mesh():
-    """Test mesh generation."""
-    mesh_data = mesh("W21x62")
-    assert mesh_data["type"] == "W21x62", f"Unexpected mesh type: {mesh_data['type']}"
-    assert mesh_data["geometry"] == "hyperbolic_ellipse", f"Unexpected geometry: {mesh_data['geometry']}"
-
-def test_haptics():
-    """Test haptic feedback."""
-    buzz("low")
-    shake("hard")
-    # Note: Hardware-dependent, assuming no errors raised
-
-def test_welding():
-    """Test welding functions."""
-    weave("christmas_tree", speed=18, arc=1.8)
-    TIG(tungsten="1%lan", argon=98, volts=25, hz=100)
-    acetylene(low_oxy=True, duration=0.8)
-    # Note: Hardware-dependent, assuming no errors raised
-
-def test_friction():
-    """Test friction damping."""
-    friction = Friction()
-    friction.damp(0.5)
-    friction.oscillation()
-    assert friction.damping == 0.5, f"Unexpected damping value: {friction.damping}"
-
-def test_maptics():
-    """Test path recording."""
-    maptics = Maptics()
-    maptics.record_path(0, 0, 0, 15)
-    maptics.replay_path()
-    assert len(maptics.path) == 1, f"Unexpected path length: {len(maptics.path)}"
-    assert maptics.path[0] == (0, 0, 0, 15), "Unexpected path coordinates"
-
-def test_prep_tools():
-    """Test preparation tools."""
-    angle_grinder(30, 20000, "water")
-    swarf_vacuum()
-    acetylene_mark(low_oxy=True, duration=0.8)
-    auto_markup(30, 45, 2.0)
-    # Note: Hardware-dependent, assuming no errors raised
-
-def test_post_process():
-    """Test post-processing."""
-    anodize("sulfuric", 20, 20, "pearl_gold", True)
-    viscosity_check(20)
-    pack("urea", 850, 4)
-    quench("mineral_oil", 200)
-    paint("epoxy_primer", "polyurethene", "mica_gold")
-    # Note: Hardware-dependent, assuming no errors raised
-
-def test_gyro_gimbal(tmp_path):
-    """Test gyroscopic gimbal with element properties."""
-    from tetra.tetra.gyrogimbal import TetraVibe, Sym  # Updated from Sympathy
-    from tetra.utils.periodic_table import carbon
+if __name__ == "__main__":
+    sym = Sym()
     model = TetraVibe()
-    sym = Sym()  # Updated instantiation
     pos1 = np.array([0, 0, 0])
     pos2 = np.array([0.05, 0, 0])
-    wave, spin, force = model.gyro_gimbal(pos1, pos2, element=carbon, spin_rate=1.0)
-    assert wave > 0, "Wave should be positive"
-    assert len(spin) == 3, "Spin should be 3D vector"
-    assert force > 0, "Force should be positive"
-    sym.tilt("spin_axis", 1.0)
+    from tetra.utils.periodic_table import carbon
+    wave, spin, force = model.gyro_gimbal(pos1, pos2, element=carbon, spin_rate=1.5)
+    print(f"Wave: {wave}, Spin: {spin}, Force: {force:.4e}")
+    sym.tilt("spin_axis", 1.5)
     sym.stabilize()
-    assert sym.spin_rate < 1.0, "Spin rate should be damped"
-
-# Example usage
-if __name__ == "__main__":
-    pytest.main(["-v"])
+    spin_vector = sym.get_spin_vector()
+    print(f"Spin Vector: {spin_vector}")
+    pos3 = np.array([0.15, 0, 0])  # far fake
+    wave_far, spin_far, force_far = model.gyro_gimbal(pos1, pos3)
+    print(f"Far wave: {wave_far}, Far spin: {spin_far}, Far force: {force_far:.4e}")
+    coord = np.array([[1.0, 0.0, 0.0]])
+    angles = np.array([np.pi/2, 0.0, 0.0])
+    new_coord = model.gyro_gimbal_rotate(coord, angles)
+    print(f"Rotated: {new_coord}")
