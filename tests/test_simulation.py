@@ -34,7 +34,7 @@ from tetra.tetra.gyrogimbal import TetraVibe, Sym
 from tetra import kappa_grid
 from porosity import porosity_hashing
 from electrode import simulate_electrode
-from crane import simulate_crane_sway
+from crane import Crane
 from particles import track_particle_vector
 from sync import quantum_sync
 from fleet_vector import simulate_fleet_vector
@@ -86,15 +86,19 @@ def test_electrode_stability():
     assert result['hydrogen_content'] < 4, f"Hydrogen content too high: {result['hydrogen_content']}"
 
 def test_crane_sway():
-    """Test crane sway simulation."""
-    from crane import Crane
+    """Test crane sway simulation with wind direction."""
     crane = Crane(beam_length=384, load_weight=1000.0)
+    crane.set_wind_direction(90.0)  # East wind
     displacements = crane.simulate_crane_sway(steps=5)
     assert len(displacements) == 5, f"Unexpected number of sway displacements: {len(displacements)}"
     assert all(abs(d) < 10 for d in displacements), "Sway displacement too large"
     crane.apply_control(motor_speed=2.0, mode="auto")
     stability = crane.get_stability()
     assert 0.0 <= stability <= 1.0, f"Stability out of range: {stability}"
+    # Test wind direction effect by comparing with no wind
+    crane.set_wind_direction(0.0)
+    displacements_no_wind = crane.simulate_crane_sway(steps=5)
+    assert not np.array_equal(displacements, displacements_no_wind), "Wind direction should affect displacements"
 
 def test_particle_vector():
     """Test particle vector tracking."""
