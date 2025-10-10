@@ -1,5 +1,16 @@
 # factory_sim.py
 # Copyright 2025 Beau Ayres
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+#     http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 # Proprietary Software - All Rights Reserved
 #
 # This software is proprietary and confidential. Unauthorized copying,
@@ -22,76 +33,72 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import simpy
-import random
-from utils.rig import Rig
-from tetra.utils.periodic_table import Element
-from bom import BOM
-from crane import Crane
+import numpy as np
+import hashlib
+import time
+from ghost_hand import Ghosthand
 
 class FactorySim:
-    """Simulate a welding factory with safety SOPs."""
-    def __init__(self, env, num_welders=5, num_beams=10):
+    def __init__(self, env):
         self.env = env
-        self.num_welders = num_welders
-        self.num_beams = num_beams
-        self.welders = simpy.Resource(env, capacity=num_welders)
-        self.rig = Rig()
-        self.crane = Crane(beam_length=384.0)
-        self.bom = BOM("welding_beam")
-        self.bom.add_spec("material", "iron")
-        self.bom.resolve_elements()
-        self.element = self.bom.elements.get(self.bom.specs["material"], Element("Fe", "Iron", 26, 55.845, 8, 4))
+        self.gate = np.array([0, 0, 0])
+        self.kappa = 0.1  # baseline curvature
+        self.history = []  # kappa register
+        self.lockouts = set()  # lockout tags
+        self.sensors = []  # two-camera array placeholder
+        self.ghosthand = GhostHand()  # haptic feedback
 
-    def safety_check(self):
-        """Perform safety check based on SOPs."""
-        # Example SOPs from search results
-        sop_steps = [
-            "Ensure welding area is ventilated and free of flammable materials.",
-            "Wear appropriate PPE: welding helmet, gloves, apron.",
-            "Check equipment for damage and proper grounding.",
-            "Verify emergency exits and fire extinguishers are accessible.",
-            "Confirm training on element hazards (e.g., hydrogen content)."
-        ]
-        for step in sop_steps:
-            self.rig.log("Safety SOP", step=step)
-        # Check element risk
-        risk_profile = self.element.generate_risk_profile("fire")
-        self.rig.log("Element Risk Profile", profile=risk_profile)
-        return True  # Assume passes; in real sim, could randomize failures
+    def register_kappa(self, incident=None):
+        now = time.time()
+        key = hashlib.sha3_256(f"{now}{self.kappa:.2f}{incident or ''}".encode()).hexdigest()
+        self.history.append((now, self.kappa, key))
+        if len(self.history) > 1000:
+            self.history.pop(0)  # keep last 1000
+        return key
 
-    def weld_process(self, beam_id):
-        """Simulate welding process for a beam."""
-        if not self.safety_check():
-            self.rig.flag("Safety failure")
-            return
-        
-        with self.welders.request() as req:
-            yield req
-            # Simulate preparation
-            yield self.env.timeout(random.randint(5, 10))  # Prep time
-            self.rig.log("Preparation complete", beam_id=beam_id)
-            
-            # Crane sway simulation
-            self.crane.set_wind_direction(random.uniform(0, 360))
-            sway = self.crane.simulate_crane_sway(steps=5)
-            self.rig.log("Crane sway", average_sway=np.mean(sway))
-            
-            # Welding
-            yield self.env.timeout(random.randint(10, 20))  # Weld time
-            self.rig.log("Welding complete", beam_id=beam_id)
-            
-            # Post-processing
-            yield self.env.timeout(random.randint(5, 15))  # Post time
-            self.rig.log("Post-processing complete", beam_id=beam_id)
+    def get_situational_kappa(self):
+        if not self.history:
+            return self.kappa
+        last_kappa = self.history[-1][1]
+        if len(self.history) > 5:
+            drift = np.std([k[1] for k in self.history[-5:]])
+            return last_kappa + drift  # real-time awareness
+        return last_kappa
 
-    def run(self):
-        """Run the factory simulation."""
-        for beam_id in range(self.num_beams):
-            self.env.process(self.weld_process(beam_id))
-        self.env.run(until=100)  # Simulate for 100 time units
+    def trigger_emergency(self, incident):
+        self.kappa += 0.2  # reflex to hazard
+        self.lockouts.add(incident)
+        self.ghosthand.pulse(2)  # alert workers
+        print(f"{incident.upper()} - Kappa now {self.kappa:.2f}")
+
+    def auto_rig(self, target, repair_time=5):
+        yield self.env.timeout(repair_time)
+        print(f"{target} fixed by drone. Lockout cleared.")
+        self.lockouts.discard(target)
+        self.kappa -= 0.2  # settle
+        self.ghosthand.pulse(1)  # clear signal
+
+    def camera_array(self):
+        # two-camera stereo, 15in baseline
+        points = np.random.rand(100, 3) * 100  # mock point cloud
+        drift = np.linalg.norm(points[-1] - self.gate)
+        if drift > 5:  # threshold for path deviation
+            self.kappa += 0.05
+            self.ghosthand.pulse(3)  # warn of drift
+        return points
+
+    def run_day(self):
+        print(f"Day start - Situational Kappa = {self.get_situational_kappa():.3f}")
+        yield self.env.timeout(20)  # 20s to rupture
+        self.trigger_emergency("gas_rupture")
+        self.register_kappa("gas_rupture")
+        yield self.env.process(self.auto_rig("gas_line"))
+        self.camera_array()  # update kappa
+        self.register_kappa()
+        print(f"Day end - Situational Kappa = {self.get_situational_kappa():.3f}")
 
 if __name__ == "__main__":
     env = simpy.Environment()
-    factory = FactorySim(env)
-    factory.run()
-    print("Factory simulation complete")
+    sim = FactorySim(env)
+    env.process(sim.run_day())
+    env.run(until=60)
