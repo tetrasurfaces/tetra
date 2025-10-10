@@ -1,3 +1,35 @@
-NOTICE
+NOTICE: Tetra Surfaces and Kappasha Software
 
-This software is proprietary and provided under a custom license. Educational Institutions (including universities, technical colleges, etc.) must contact the Licensor at sendtotoddhutchinson@gmail.com to negotiate a commercial license before use. Unauthorized use is prohibited.
+Copyright 2025 Beau Ayres
+
+This software, including tetra (fractal surface generation using Sapienski triangles) and kappasha256 (hashing for etching and authentication), is licensed under a custom license based on Apache License 2.0 and GNU AGPL-3.0-or-later, with proprietary restrictions for commercial use. The full license is available in LICENSE.txt.
+
+### Declaring Intent to Use
+To use, reproduce, distribute, or modify this software, you must declare your intent and request a license by opening a GitHub issue at github.com/tetrasurfaces/issues. Your issue must include:
+
+- **User Type**: Specify if you are an Educational Institution (e.g., university, technical college) or a Commercial Entity (e.g., business, molding shop).
+- **Intended Use**: Describe your use case:
+  - Educational: E.g., "Training operators in SolidWorks and Keyshot for fractal surface modeling" or "Research on curvature analysis (kappa) for 3D printing."
+  - Commercial: E.g., "Etching hashed patterns on automotive parts for branding" or "Integrating tetra surfaces into product molds."
+- **Contact Information**: Provide an email for private follow-up. Do not share proprietary details in public issues.
+- **License Type**: Request either:
+  - Educational License: For teaching, research, or institutional purposes, typically royalty-free or low-cost.
+  - Commercial License: For profit-driven applications, requiring negotiated terms.
+
+### Examples of Intent
+- Educational: "We are a university engineering department using tetra to teach CAD integration with Rhino and Keyshot for fractal surface design."
+- Commercial: "We are an automotive supplier integrating kappasha256 hashed etches into molded parts for OEM branding."
+
+### Important Notes
+- **No Automatic Rights**: Use without a negotiated license agreement is a breach of the license.
+- **Confidentiality**: Avoid sharing proprietary or sensitive details in public GitHub issues. Request private communication in your issue for such matters.
+- **Response Time**: Licensor aims to respond to GitHub issues within 5 business days.
+- **Physical Outputs**: For physical applications (e.g., molding, etching), comply with safety (UL 1642, IEC 62133) and environmental regulations (EU Battery Directive 2023/1542).
+- **Cryptographic Compliance**: Kappasha256 includes cryptographic functionality. Ensure compliance with export controls (e.g., US EAR, Category 5 Part 2).
+
+### Contact
+Open a GitHub issue at github.com/tetrasurfaces/issues to initiate licensing negotiations. For full license terms, see LICENSE.txt or visit:
+- Apache 2.0: http://www.apache.org/licenses/LICENSE-2.0
+- AGPL-3.0: https://www.gnu.org/licenses/
+
+This software is proprietary and confidential. Unauthorized use is prohibited without express written permission from Beau Ayres, requested via github.com/tetrasurfaces/issues.
