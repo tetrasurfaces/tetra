@@ -21,6 +21,7 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 import numpy as np
+from weather import Wind
 
 class Crane:
     """Simulate crane dynamics with control, stability, and wind direction features."""
@@ -30,7 +31,7 @@ class Crane:
         self.damping = damping
         self.motor_speed = 0.0  # Initial motor speed (m/s)
         self.control_mode = "manual"  # Default control mode
-        self.wind_direction = 0.0  # Wind direction in degrees (0-360)
+        self.wind = Wind(base_speed=5.0, base_direction=0.0)  # Initialize wind object
 
     def apply_control(self, motor_speed, mode="manual"):
         """Apply motor control and switch mode."""
@@ -39,17 +40,16 @@ class Crane:
         print(f"Applied control: Motor speed = {self.motor_speed} m/s, Mode = {self.control_mode}")
 
     def set_wind_direction(self, direction):
-        """Set wind direction in degrees (0-360)."""
-        self.wind_direction = np.mod(direction, 360.0)
-        print(f"Wind direction set to {self.wind_direction} degrees")
+        """Set wind direction in degrees (0-360) via Wind object."""
+        self.wind.base_direction = np.mod(direction, 360.0)
+        print(f"Wind direction set to {self.wind.base_direction} degrees")
 
-    def simulate_crane_sway(self, steps, wind_speed=5.0):
+    def simulate_crane_sway(self, steps):
         """
-        Simulate crane sway displacement based on beam length, load, control, and wind direction.
+        Simulate crane sway displacement based on beam length, load, control, and wind.
         
         Args:
             steps (int): Number of simulation steps.
-            wind_speed (float, optional): Wind speed in m/s. Defaults to 5.0.
         
         Returns:
             list: List of displacement values (in meters) for each step.
@@ -57,6 +57,7 @@ class Crane:
         amplitude = 0.1 * self.beam_length + 0.001 * self.load_weight  # Load increases sway
         frequency = 0.5 / self.beam_length  # Frequency inversely proportional to length
         control_factor = 0.1 * self.motor_speed if self.control_mode == "manual" else 0.05 * self.motor_speed  # Automated reduces sway
+        wind_speed, wind_direction = self.wind.get_wind()  # Get dynamic wind from Weather
         
         displacements = []
         for i in range(steps):
@@ -64,7 +65,7 @@ class Crane:
             # Harmonic oscillation with damping
             displacement = amplitude * np.sin(2 * np.pi * frequency * time) * np.exp(-self.damping * time)
             # Wind effect with directional phase shift
-            wind_phase = np.deg2rad(self.wind_direction)  # Convert to radians
+            wind_phase = np.deg2rad(wind_direction)
             wind_effect = wind_speed * 0.02 * np.sin(2 * np.pi * 0.1 * time + wind_phase)
             # Control effect
             control_effect = control_factor * np.cos(2 * np.pi * 0.2 * time)
