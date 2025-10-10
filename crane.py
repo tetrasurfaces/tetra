@@ -23,13 +23,14 @@
 import numpy as np
 
 class Crane:
-    """Simulate crane dynamics with control and stability features."""
+    """Simulate crane dynamics with control, stability, and wind direction features."""
     def __init__(self, beam_length, load_weight=1000.0, damping=0.1):
         self.beam_length = beam_length
         self.load_weight = load_weight  # in kg
         self.damping = damping
         self.motor_speed = 0.0  # Initial motor speed (m/s)
         self.control_mode = "manual"  # Default control mode
+        self.wind_direction = 0.0  # Wind direction in degrees (0-360)
 
     def apply_control(self, motor_speed, mode="manual"):
         """Apply motor control and switch mode."""
@@ -37,9 +38,14 @@ class Crane:
         self.control_mode = mode
         print(f"Applied control: Motor speed = {self.motor_speed} m/s, Mode = {self.control_mode}")
 
+    def set_wind_direction(self, direction):
+        """Set wind direction in degrees (0-360)."""
+        self.wind_direction = np.mod(direction, 360.0)
+        print(f"Wind direction set to {self.wind_direction} degrees")
+
     def simulate_crane_sway(self, steps, wind_speed=5.0):
         """
-        Simulate crane sway displacement based on beam length, load, and control.
+        Simulate crane sway displacement based on beam length, load, control, and wind direction.
         
         Args:
             steps (int): Number of simulation steps.
@@ -55,10 +61,13 @@ class Crane:
         displacements = []
         for i in range(steps):
             time = i * 0.1  # Time step of 0.1 seconds
-            # Harmonic oscillation with damping, load, wind, and control effects
+            # Harmonic oscillation with damping
             displacement = amplitude * np.sin(2 * np.pi * frequency * time) * np.exp(-self.damping * time)
-            wind_effect = wind_speed * 0.02 * np.sin(2 * np.pi * 0.1 * time)
-            control_effect = control_factor * np.cos(2 * np.pi * 0.2 * time)  # Oscillatory control
+            # Wind effect with directional phase shift
+            wind_phase = np.deg2rad(self.wind_direction)  # Convert to radians
+            wind_effect = wind_speed * 0.02 * np.sin(2 * np.pi * 0.1 * time + wind_phase)
+            # Control effect
+            control_effect = control_factor * np.cos(2 * np.pi * 0.2 * time)
             total_displacement = displacement + wind_effect + control_effect
             displacements.append(total_displacement)
         
@@ -82,6 +91,7 @@ if __name__ == "__main__":
     # Example usage
     crane = Crane(beam_length=384, load_weight=2000.0)
     crane.apply_control(motor_speed=2.0, mode="auto")
+    crane.set_wind_direction(45.0)  # Northeast wind
     sway = crane.simulate_crane_sway(steps=5)
     print(f"Crane sway displacements: {sway}")
     stability = crane.get_stability()
