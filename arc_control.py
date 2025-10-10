@@ -1,4 +1,3 @@
-# arc_control.py
 # Copyright 2025 Beau Ayres
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -31,155 +30,68 @@
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #!/usr/bin/env python3
-# kappasha_os.py - Kappa-tilted OS with rhombus voxel navigation, factory sim integration.
-# CLI-driven, no GUI, DOS Navigator soul in 3D. Pure civilian engineering.
+# arc_control.py - Real-time arc length and stick-out control for MIG welding.
+# Integrates with KappashaOS for haptic feedback and sound cues.
 
-import simpy
-import numpy as np
-from nav3d import RhombusNav
-from factory_sim import FactorySim
+import time
 from ghost_hand import GhostHand
-from thought_curve import ThoughtCurve
-from arch_utils.render import render
-from dev_utils.lockout import lockout
-from dev_utils.hedge import hedge, multi_hedge
-from dev_utils.grep import grep
-from dev_utils.thought_arb import thought_arb
-import kappasha_os_cython  # Cython-optimized functions
+from arc_listen import listen_arc
 
-class KappashaOS:
-    def __init__(self):
-        self.env = simpy.Environment()
-        self.nav = RhombusNav(kappa=0.2)
-        self.factory = FactorySim(self.env)
+class ArcControl:
+    def __init__(self, set_voltage=26.0, set_feed_rate=300.0):
+        self.voltage = set_voltage  # Target voltage in volts
+        self.feed_rate = set_feed_rate  # Target feed rate in IPM
+        self.stick_out_target = 15.0  # Target stick-out in mm
         self.hand = GhostHand(kappa=0.2)
-        self.curve = ThoughtCurve()
-        self.commands = []
-        self.sensor_data = []
-        self.decisions = []  # Log decision outcomes
-        print("Kappasha OS booted - kappa-tilted rhombus grid with decision support ready.")
+        self.log = []
+        self.running = True
 
-    def poll_sensor(self):
-        """Simulate real-time sensor input (gyro, camera)."""
-        while True:
-            gyro = np.random.uniform(0, 20)
-            drift = np.random.rand() * 0.1
-            self.sensor_data.append((self.env.now, gyro, drift))
-            if gyro > 10 or drift > 0.05:
-                self.nav.kappa += 0.1
-                self.factory.kappa += 0.1
-                self.hand.kappa += 0.1
-                self.hand.pulse(2)
-                print(f"Sensor alert: Kappa adjusted to {self.nav.kappa:.3f} (gyro={gyro:.1f}, drift={drift:.2f})")
-            yield self.env.timeout(5)
+    def monitor(self):
+        """Monitor arc length and stick-out, adjust in real-time."""
+        while self.running:
+            # Simulate sensor data (replace with actual hardware)
+            current_voltage = self.voltage + (time.time() % 2 - 1) * 1.5  # ±1.5V drift
+            current_feed = self.feed_rate + (time.time() % 2 - 1) * 20  # ±20 IPM drift
+            stick_out = 0.8 * (current_feed / (current_voltage / 10))  # Rough estimate
 
-    def run_command(self, cmd):
-        """Execute CLI commands with kappa awareness."""
-        self.commands.append(cmd)
-        if cmd == "kappa ls":
-            front, right, top = kappasha_os_cython.project_third_angle(self.nav.grid, self.nav.kappa)  # Cython call
-            print("FRONT:\n", front[:3, :3])
-            print("RIGHT:\n", right[:3, :3])
-            print("TOP:\n", top[:3, :3])
-        elif cmd.startswith("kappa tilt"):
-            try:
-                dk = float(cmd.split()[2])
-                self.nav.kappa += dk
-                self.factory.kappa += dk
-                self.hand.kappa += dk
-                self.hand.pulse(2)
-                print(f"Kappa now {self.nav.kappa:.3f}")
-            except:
-                print("usage: kappa tilt 0.05")
-        elif cmd.startswith("kappa cd"):
-            try:
-                path = cmd.split()[2]
-                self.nav.path.append(path)
-                hedge_action = hedge(self.curve, self.nav.path)
-                if hedge_action == "unwind":
-                    self.hand.pulse(3)
-                    print("Path hedge: unwind")
-                print(f"Curved to /{path}")
-            except:
-                print("usage: kappa cd logs")
-        elif cmd.startswith("kappa unlock"):
-            try:
-                coord = tuple(map(int, cmd.split()[2].strip("()").split(",")))
-                if self.nav.unlock_edge(coord):
-                    self.factory.register_kappa("edge_unlock")
-            except:
-                print("usage: kappa unlock (7,0,0)")
-        elif cmd == "arch_utils render":
-            filename = render(self.nav.grid, self.nav.kappa)
-            print(f"arch_utils: Rendered to {filename}")
-        elif cmd.startswith("dev_utils lockout"):
-            try:
-                target = cmd.split()[2]
-                lockout(self.factory, target)
-            except:
-                print("usage: dev_utils lockout gas_line")
-        elif cmd.startswith("kappa grep"):
-            try:
-                pattern = cmd.split(maxsplit=2)[2]
-                matches = grep(self.factory.history, pattern)
-                if matches:
-                    self.hand.pulse(len(matches))
-                    print(f"Grep found {len(matches)} matches:")
-                    for m in matches[:3]:
-                        print(f" - {m}")
-                else:
-                    print("No matches found.")
-            except:
-                print("usage: kappa grep /warp=0.2+/")
-        elif cmd == "kappa sensor":
-            print(f"Sensor data: {self.sensor_data[-1]}")
-        elif cmd.startswith("kappa hedge multi"):
-            try:
-                paths = cmd.split()[2].strip("[]").split(",")
-                paths = [p.strip() for p in paths]
-                hedge_action = multi_hedge(self.curve, [(paths[-2], paths[-1])] if len(paths) > 1 else [(paths[0], paths[0])])
-                if "unwind" in hedge_action:
-                    self.hand.pulse(4)
-                    print(f"Multi-path hedge: {hedge_action}")
-                else:
-                    print(f"Multi-path hedge: {hedge_action}")
-            except:
-                print("usage: kappa hedge multi [gate,weld]")
-        elif cmd.startswith("kappa decide"):
-            try:
-                intent = cmd.split()[2]
-                action = kappasha_os_cython.thought_arb_cython(self.curve, self.factory.history, intent)  # Cython call
-                self.decisions.append((self.env.now, intent, action))
-                self.hand.pulse(2 if action == "unwind" else 1)
-                print(f"Decision: {intent} - {action}")
-                if action == "unwind":
-                    self.nav.kappa += 0.05
-                    print(f"Kappa adjusted to {self.nav.kappa:.3f} due to arbitrage")
-            except:
-                print("usage: kappa decide weld")
-        else:
-            print("kappa: ls | tilt 0.05 | cd logs | unlock (7,0,0) | arch_utils render | dev_utils lockout gas_line | grep /warp=0.2+/ | sensor | hedge multi [gate,weld] | decide weld")
+            # Arc length calculation (simplified: voltage/current ratio)
+            arc_length = 0.5 * (current_voltage - self.voltage) + 10  # Baseline 10mm
 
-    def run_day(self):
-        """Simulate a factory day with kappa navigation."""
-        print(f"Day start - Situational Kappa = {self.factory.get_situational_kappa():.3f}")
-        self.env.process(self.poll_sensor())
-        yield self.env.timeout(20)
-        self.factory.trigger_emergency("gas_rupture")
-        self.factory.register_kappa("gas_rupture")
-        self.run_command("kappa cd weld")
-        self.run_command("kappa unlock (7,0,0)")
-        self.run_command("kappa grep /gas_rupture/")
-        self.run_command("kappa sensor")
-        self.run_command("kappa hedge multi [gate,weld]")
-        self.run_command("kappa decide weld")
-        yield self.env.process(self.factory.auto_rig("gas_line"))
-        self.run_command("kappa ls")
-        self.run_command("arch_utils render")
-        print(f"Day end - Situational Kappa = {self.factory.get_situational_kappa():.3f}")
-        print(f"Decisions made: {self.decisions}")
+            # Log data
+            self.log.append((time.time(), arc_length, stick_out, current_voltage, current_feed))
+
+            # Adjust based on sound feedback
+            sound_profile = listen_arc()
+            if sound_profile["frequency"] > 8000:  # Spatter or too long
+                self.hand.pulse(2)  # Two pulses: pull back
+                print("Arc too long/stuttering - adjust stick-out")
+            elif sound_profile["frequency"] < 2000:  # Too short
+                self.hand.pulse(1)  # One pulse: push in
+                print("Arc too short - adjust stick-out")
+
+            # Safety cutoff
+            if current_voltage > self.voltage + 5.0:  # 5V over target
+                print("Voltage spike detected - shutting down")
+                self.running = False
+
+            # Haptic feedback for stick-out
+            if stick_out > self.stick_out_target + 3.0:  # >18mm
+                self.hand.squeeze(0.8)  # Gentle squeeze: too far
+                print(f"Stick-out {stick_out:.1f}mm - pull back")
+            elif stick_out < self.stick_out_target - 3.0:  # <12mm
+                self.hand.squeeze(0.4)  # Light squeeze: too close
+                print(f"Stick-out {stick_out:.1f}mm - push in")
+
+            time.sleep(0.1)  # 10ms loop
+
+    def stop(self):
+        """Stop monitoring and print log."""
+        self.running = False
+        print("Arc Control Log:", self.log[-5:])  # Last 5 entries
 
 if __name__ == "__main__":
-    os = KappashaOS()
-    os.env.process(os.run_day())
-    os.env.run(until=60)
+    controller = ArcControl()
+    try:
+        controller.monitor()
+    except KeyboardInterrupt:
+        controller.stop()
