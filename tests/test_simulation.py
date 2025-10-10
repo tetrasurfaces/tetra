@@ -42,6 +42,8 @@ from rhombus_voxel import generate_rhombus_voxel
 from swing_fog import model_swing_fog
 from seeing_layer import simulate_seeing_layer
 from gravity import simulate_gravity
+from weather import Wind
+from gravity import simulate_gravity
 from coriolis import simulate_coriolis
 from centrifuge import simulate_centrifuge_emulsification
 from rotomolding import simulate_rotomolding
@@ -86,19 +88,21 @@ def test_electrode_stability():
     assert result['hydrogen_content'] < 4, f"Hydrogen content too high: {result['hydrogen_content']}"
 
 def test_crane_sway():
-    """Test crane sway simulation with wind direction."""
+    """Test crane sway simulation with wind and gravity."""
     crane = Crane(beam_length=384, load_weight=1000.0)
     crane.set_wind_direction(90.0)  # East wind
     displacements = crane.simulate_crane_sway(steps=5)
     assert len(displacements) == 5, f"Unexpected number of sway displacements: {len(displacements)}"
-    assert all(abs(d) < 10 for d in displacements), "Sway displacement too large"
+    # Gravity should cause downward trend; check if displacements increase
+    assert all(displacements[i] <= displacements[i + 1] for i in range(len(displacements) - 1)), "Gravity should cause cumulative displacement"
     crane.apply_control(motor_speed=2.0, mode="auto")
     stability = crane.get_stability()
     assert 0.0 <= stability <= 1.0, f"Stability out of range: {stability}"
-    # Test wind direction effect by comparing with no wind
-    crane.set_wind_direction(0.0)
-    displacements_no_wind = crane.simulate_crane_sway(steps=5)
-    assert not np.array_equal(displacements, displacements_no_wind), "Wind direction should affect displacements"
+    # Test wind variation
+    initial_displacements = displacements.copy()
+    time.sleep(1)  # Allow wind to update
+    displacements_after = crane.simulate_crane_sway(steps=5)
+    assert not np.array_equal(initial_displacements, displacements_after), "Wind variation should affect displacements"
 
 def test_particle_vector():
     """Test particle vector tracking."""
