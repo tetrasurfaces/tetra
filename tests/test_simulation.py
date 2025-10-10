@@ -82,10 +82,21 @@ def test_rhombus_voxel(tmp_path):
         assert "Voxel analysis" in content, "Voxel metrics not logged"
 
 def test_electrode_stability():
-    """Test electrode simulation for arc stability."""
-    result = simulate_electrode(voltage=180, amperage=50, arc_length=3, electrode_gap=2)
+    """Test electrode simulation with BOM and element safety ratings."""
+    from bom import BOM
+    from electrode import simulate_electrode
+    electrode_bom = BOM("electrode")
+    electrode_bom.add_spec("voltage", 180)
+    electrode_bom.add_spec("amperage", 50)
+    electrode_bom.add_spec("arc_length", 3)
+    electrode_bom.add_spec("electrode_gap", 2)
+    electrode_bom.add_spec("material", "iron")
+    electrode_bom.resolve_elements()
+    result = simulate_electrode(electrode_bom)
     assert result['arc_stability'] > 0.7, f"Arc stability too low: {result['arc_stability']}"
     assert result['hydrogen_content'] < 4, f"Hydrogen content too high: {result['hydrogen_content']}"
+    assert electrode_bom.get_spec("melting_point") == 1538, "Iron melting point mismatch"
+    assert electrode_bom.get_spec("safety_rating_fire") == 0.0, "Iron should have no fire hazard"  # Adjust based on hazards
 
 def test_crane_sway():
     """Test crane sway simulation with wind and gravity."""
