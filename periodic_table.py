@@ -39,7 +39,7 @@ class Element:
         self.density = density
         self.atomic_radius = atomic_radius
         self.electronegativity = electronegativity
-        self.hazards = hazards if hazards is not None else {}  # Hazards registrar (dict of scenarios)
+        self.hazards = hazards if hazards is not None else {}  # Hazards registrar
         self.space_gravity_constant = space_gravity_constant
     
     def log_usage(self, context):
@@ -71,6 +71,22 @@ class Element:
         profile += f"- Risks: {hazard.get('risks', 'Unknown')}\n"
         profile += f"- Precautions: {hazard.get('precautions', 'Unknown')}\n"
         return profile
+    
+    def safety_rating(self, scenario):
+        """Compute a safety rating (0-10, lower is safer) based on scenario hazards."""
+        hazard = self.hazards.get(scenario, {})
+        risks = hazard.get("risks", "Unknown")
+        if risks == "Unknown":
+            return 5.0  # Neutral rating if no data
+        # Simple scoring: Assign based on keywords (expandable with data)
+        score = 0.0
+        if "explosion" in risks.lower():
+            score += 4.0
+        if "toxic" in risks.lower() or "irritates" in risks.lower():
+            score += 3.0
+        if "flammable" in risks.lower():
+            score += 2.0
+        return min(score, 10.0)  # Cap at 10
 
 # Periodic table data (expanded with hazards for molybdenum as example)
 periodic_table = {
