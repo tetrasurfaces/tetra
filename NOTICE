@@ -5,7 +5,7 @@ Copyright 2025 Beau Ayres, xAI
 This software, including tetra (fractal surface generation using Sierpiński triangles) and kappasha256 (hashing for etching and authentication), is licensed under a custom license based on Apache License 2.0 and GNU AGPL-3.0-or-later, with proprietary restrictions for commercial use. The full license is available in LICENSE.txt.
 
 ### Declaring Intent to Use
-To use, reproduce, distribute, or modify this software, you must declare your intent and request a license by opening a GitHub issue at github.com/tetrasurfaces/issues. Operators can set their intent in `config.json` before running the software (e.g., `tetra_surface.py`). Your GitHub issue must include:
+To use, reproduce, distribute, or modify this software, you must declare your intent and request a license by opening a GitHub issue at github.com/tetrasurfaces/issues. Operators can set their intent in `config/config.json` before running the software (e.g., `tetra_surface.py`). Your GitHub issue must include:
 
 - **User Type**: Specify if you are an Educational Institution (e.g., university, technical college) or a Commercial Entity (e.g., business, molding shop).
 - **Intended Use**: Describe your use case:
@@ -16,15 +16,15 @@ To use, reproduce, distribute, or modify this software, you must declare your in
   - Educational License: For teaching, research, or institutional purposes, typically royalty-free or low-cost.
   - Commercial License: For profit-driven applications, requiring negotiated terms.
 
-### Setting Intent in config.json
-Before running the software, edit `config.json` to declare your intent:
+### Setting Intent in config/config.json
+Before running the software, edit `config/config.json` to declare your intent:
 ```json
 {
     "intent": "educational",  // or "commercial"
     "commercial_use": false   // true for commercial intent
 }
 ```
-If `config.json` is missing or invalid, the software will prompt for intent and create a default file. See `tetra_surface.py` for details.
+If `config/config.json` is missing or invalid, the software will prompt for intent and create a default file in the `config` directory. See `tetra_surface.py` for details.
 
 ### Examples of Intent
 - Educational: "We are a university engineering department using tetra to teach CAD integration with Rhino and Keyshot for fractal surface design."
