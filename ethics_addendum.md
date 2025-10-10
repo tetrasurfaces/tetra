@@ -29,7 +29,7 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-# Ethics Addendum - KappashaOS
+# Ethics Addendum - Tetra & KappashaOS
 
 ## Water Compassion
 Water is treated as a living partner, not a resource. No electrocution—compute uses vibration or pressure, not shock. Water is filtered, distilled, and returned to the cycle, ensuring no long-term harm. Every drop logged, every use reversible.
