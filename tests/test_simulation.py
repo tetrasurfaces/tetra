@@ -35,8 +35,8 @@ from tetra import kappa_grid
 from porosity import porosity_hashing
 from electrode import simulate_electrode
 from crane_sway import simulate_crane_sway
-from particle_vector import track_particle_vector
-from quantum_sync import quantum_sync
+from particles import track_particle_vector
+from sync import quantum_sync
 from fleet_vector import simulate_fleet_vector
 from rhombus_voxel import generate_rhombus_voxel
 from swing_fog import model_swing_fog
