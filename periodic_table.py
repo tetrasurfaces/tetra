@@ -1,4 +1,14 @@
+# periodic_table.py
 # Copyright 2025 Beau Ayres
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+# http://www.apache.org/licenses/LICENSE-2.0
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
 # Proprietary Software - All Rights Reserved
 #
 # This software is proprietary and confidential. Unauthorized copying,
@@ -13,7 +23,7 @@
 # (at your option) any later version.
 #
 # This program is distributed in the hope that it will be useful,
-# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# but WITHOUT ANY WARRANTY; without the implied warranty of
 # MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE. See the
 # GNU Affero General Public License for more details.
 #
@@ -22,23 +32,24 @@
 
 import numpy as np
 from rig import Rig
-from tetra.gyrogimbal import Sym as GyroRig  # Adjusted import for gyro_gimbal.py in tetra/
+from tetra.gyrogimbal import Sym as GyroRig  # Updated from Sympathy
 
 class Element:
-    """Base class for periodic table elements with space-related properties."""
-    def __init__(self, symbol, name, atomic_number, atomic_weight, group, period, melting_point=None, boiling_point=None, density=None, atomic_radius=None, electronegativity=None, space_gravity_constant=6.67430e-11):
+    """Base class for periodic table elements with hazards and risk profiles."""
+    def __init__(self, symbol, name, atomic_number, atomic_weight, group, period, melting_point=None, boiling_point=None, density=None, atomic_radius=None, electronegativity=None, hazards=None, space_gravity_constant=6.67430e-11):
         self.symbol = symbol
         self.name = name
-        self.atomic_number = atomic_number  # Atomic number (1-118)
-        self.atomic_weight = atomic_weight  # in u (atomic mass units)
-        self.group = group  # IUPAC group number
-        self.period = period  # period number
-        self.melting_point = melting_point  # in °C, if available
-        self.boiling_point = boiling_point  # in °C, if available
-        self.density = density  # in g/cm³, if available
-        self.atomic_radius = atomic_radius  # in pm (picometers), if available
-        self.electronegativity = electronegativity  # Pauling scale, if available
-        self.space_gravity_constant = space_gravity_constant  # Gravitational constant G (m³ kg⁻¹ s⁻²)
+        self.atomic_number = atomic_number
+        self.atomic_weight = atomic_weight
+        self.group = group
+        self.period = period
+        self.melting_point = melting_point
+        self.boiling_point = boiling_point
+        self.density = density
+        self.atomic_radius = atomic_radius
+        self.electronegativity = electronegativity
+        self.hazards = hazards if hazards is not None else {}  # Hazards registrar (dict of scenarios)
+        self.space_gravity_constant = space_gravity_constant
     
     def log_usage(self, context):
         """Log element usage in a simulation context."""
@@ -48,24 +59,34 @@ class Element:
     def map_structure(self, spin_rate=1.0, friction_coeff=0.1, mass_scale=1e-26):
         """Simulate element structure using gyrogimbal for spin, friction, and gravitational effects."""
         gyro = GyroRig()
-        gyro.tilt("spin_axis", spin_rate)  # Simulate atomic spin
-        # Convert atomic weight to approximate mass (kg) using mass_scale
-        atomic_mass_kg = mass_scale * self.atomic_weight
-        # Gravitational force between two atoms (simplified, assuming radius as distance)
-        force_grav = self.space_gravity_constant * (atomic_mass_kg ** 2) / ((self.atomic_radius * 1e-12) ** 2) if self.atomic_radius else 0.0
-        # Friction force (fictional, proportional to gravitational force)
-        friction_force = friction_coeff * force_grav if force_grav else 0.0
-        gyro.stabilize()  # Stabilize after spin
+        gyro.tilt("spin_axis", spin_rate)
+        mass_kg = mass_scale * self.atomic_weight
+        force_grav = self.space_gravity_constant * (mass_kg ** 2) / (self.atomic_radius * 1e-12) ** 2 if self.atomic_radius else 0.0
+        friction_force = friction_coeff * force_grav
+        gyro.stabilize()
         return {
             "atomic_number": self.atomic_number,
             "spin_rate": spin_rate,
             "friction_force": friction_force,
             "gravitational_force": force_grav
         }
+    
+    def generate_risk_profile(self, scenario):
+        """Generate risk profile for a given scenario (e.g., 'fire', 'spill')."""
+        hazard = self.hazards.get(scenario, {})
+        profile = f"Risk Profile for {self.name} in {scenario.capitalize()}:\n"
+        profile += f"- Inputs: {hazard.get('inputs', 'Unknown')}\n"
+        profile += f"- Outputs: {hazard.get('outputs', 'Unknown')}\n"
+        profile += f"- Risks: {hazard.get('risks', 'Unknown')}\n"
+        profile += f"- Precautions: {hazard.get('precautions', 'Unknown')}\n"
+        return profile
 
-# Complete periodic table data (up to element 118)
+# Periodic table data (expanded with hazards for molybdenum as example)
 periodic_table = {
-    "hydrogen": Element("H", "Hydrogen", 1, 1.008, 1, 1, -259.16, -252.87, 0.0899, 53, 2.20),
+    "hydrogen": Element("H", "Hydrogen", 1, 1.008, 1, 1, -259.16, -252.87, 0.0899, 53, 2.20, hazards={
+        "fire": {"inputs": "H2 gas", "outputs": "Water vapor", "risks": "Flammable, explosion hazard", "precautions": "Ventilation, no ignition sources"},
+        "spill": {"inputs": "Liquid H2", "outputs": "Evaporation", "risks": "Frostbite, asphyxiation", "precautions": "PPE, evacuate area"},
+    }),
     "helium": Element("He", "Helium", 2, 4.0026, 18, 1, -272.2, -268.93, 0.1785, 31, None),
     "lithium": Element("Li", "Lithium", 3, 6.94, 1, 2, 180.5, 1342, 0.534, 152, 0.98),
     "beryllium": Element("Be", "Beryllium", 4, 9.0122, 2, 2, 1287, 2469, 1.848, 112, 1.57),
@@ -104,9 +125,12 @@ periodic_table = {
     "rubidium": Element("Rb", "Rubidium", 37, 85.4678, 1, 5, 39.31, 688, 1.532, 248, 0.82),
     "strontium": Element("Sr", "Strontium", 38, 87.62, 2, 5, 777, 1382, 2.64, 215, 0.95),
     "yttrium": Element("Y", "Yttrium", 39, 88.9059, 3, 5, 1522, 3338, 4.472, 180, 1.22),
-    "zirconium": Element("Zr", "Zirconium", 40, 91.224, 4, 5, 1855, 4409, 6.52, 160, 1.33),
+    "zirconium": Element("Zr", "Zirconium", 40, 91.224, 4, 5, 1855, 4450, 6.52, 160, 1.33),
     "niobium": Element("Nb", "Niobium", 41, 92.9064, 5, 5, 2477, 4744, 8.57, 146, 1.6),
-    "molybdenum": Element("Mo", "Molybdenum", 42, 95.95, 6, 5, 2623, 4639, 10.28, 139, 2.16),
+    "molybdenum": Element("Mo", "Molybdenum", 42, 95.95, 6, 5, 2623, 4639, 10.28, 139, 2.16, hazards={
+        "fire": {"inputs": "Molybdenum dust", "outputs": "Molybdenum oxide fumes", "risks": "Irritates eyes and respiratory tract, non-flammable but oxidizes at high temps", "precautions": "Ventilation, NIOSH-approved respirator, avoid ignition"},
+        "spill": {"inputs": "Molybdenum powder", "outputs": "Dust dispersion", "risks": "Inhalation hazard, prevent entry to waterways", "precautions": "PPE, contain spill, ventilate area"},
+    }),
     "technetium": Element("Tc", "Technetium", 43, 98.0, 7, 5, 2157, 4265, 11.5, 136, 1.9),
     "ruthenium": Element("Ru", "Ruthenium", 44, 101.07, 8, 5, 2334, 4150, 12.45, 134, 2.2),
     "rhodium": Element("Rh", "Rhodium", 45, 102.9055, 9, 5, 1964, 3695, 12.41, 134, 2.28),
@@ -182,7 +206,7 @@ periodic_table = {
     "moscovium": Element("Mc", "Moscovium", 115, 290.0, 15, 7, 0, 0, 0, 0, 0),
     "livermorium": Element("Lv", "Livermorium", 116, 293.0, 16, 7, 0, 0, 0, 0, 0),
     "tennessine": Element("Ts", "Tennessine", 117, 294.0, 17, 7, 0, 0, 0, 0, 0),
-    "oganesson": Element("Og", "Oganesson", 118, 294.0, 18, 7, 0, 0, 0, 0, 0)
+    "oganesson": Element("Og", "Oganesson", 118, 294.0, 18, 7, 0, 0, 0, 0, 0),
 }
 
 # Allow dynamic access to elements
@@ -190,11 +214,6 @@ globals().update(periodic_table)
 
 # Example usage
 if __name__ == "__main__":
-    carbon.log_usage("space simulation")
-    print(f"Carbon: Weight = {carbon.atomic_weight} u, Group = {carbon.group}, Period = {carbon.period}, Boiling Point = {carbon.boiling_point} °C")
-    print(f"Iron: Melting Point = {iron.melting_point} °C, Density = {iron.density} g/cm³, Atomic Radius = {iron.atomic_radius} pm")
-    # Map structure using gyrogimbal
-    carbon_map = carbon.map_structure(spin_rate=1.5, friction_coeff=0.15)
-    print(f"Carbon structure map: {carbon_map}")
-    iron_map = iron.map_structure(spin_rate=1.0, friction_coeff=0.1)
-    print(f"Iron structure map: {iron_map}")
+    print(molybdenum.generate_risk_profile("fire"))
+    print(molybdenum.generate_risk_profile("spill"))
+    molybdenum.log_usage("factory fire simulation")
