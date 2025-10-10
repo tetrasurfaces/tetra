@@ -87,9 +87,14 @@ def test_electrode_stability():
 
 def test_crane_sway():
     """Test crane sway simulation."""
-    displacements = simulate_crane_sway(beam_length=384, steps=5)
+    from crane import Crane
+    crane = Crane(beam_length=384, load_weight=1000.0)
+    displacements = crane.simulate_crane_sway(steps=5)
     assert len(displacements) == 5, f"Unexpected number of sway displacements: {len(displacements)}"
     assert all(abs(d) < 10 for d in displacements), "Sway displacement too large"
+    crane.apply_control(motor_speed=2.0, mode="auto")
+    stability = crane.get_stability()
+    assert 0.0 <= stability <= 1.0, f"Stability out of range: {stability}"
 
 def test_particle_vector():
     """Test particle vector tracking."""
