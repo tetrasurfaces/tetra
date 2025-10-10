@@ -34,7 +34,7 @@ from tetra.tetra.gyrogimbal import TetraVibe, Sym
 from tetra import kappa_grid
 from porosity import porosity_hashing
 from electrode import simulate_electrode
-from crane_sway import simulate_crane_sway
+from crane import simulate_crane_sway
 from particles import track_particle_vector
 from sync import quantum_sync
 from fleet_vector import simulate_fleet_vector
