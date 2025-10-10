@@ -1,3 +1,4 @@
+# crane.py
 # Copyright 2025 Beau Ayres
 # Proprietary Software - All Rights Reserved
 #
@@ -22,9 +23,10 @@
 
 import numpy as np
 from weather import Wind
+from gravity import simulate_gravity
 
 class Crane:
-    """Simulate crane dynamics with control, stability, and wind direction features."""
+    """Simulate crane dynamics with control, stability, wind, and gravity features."""
     def __init__(self, beam_length, load_weight=1000.0, damping=0.1):
         self.beam_length = beam_length
         self.load_weight = load_weight  # in kg
@@ -46,30 +48,36 @@ class Crane:
 
     def simulate_crane_sway(self, steps):
         """
-        Simulate crane sway displacement based on beam length, load, control, and wind.
+        Simulate crane sway displacement with wind and gravity effects.
         
         Args:
             steps (int): Number of simulation steps.
         
         Returns:
-            list: List of displacement values (in meters) for each step.
+            list: List of total displacement values (in meters) for each step.
         """
         amplitude = 0.1 * self.beam_length + 0.001 * self.load_weight  # Load increases sway
         frequency = 0.5 / self.beam_length  # Frequency inversely proportional to length
         control_factor = 0.1 * self.motor_speed if self.control_mode == "manual" else 0.05 * self.motor_speed  # Automated reduces sway
         wind_speed, wind_direction = self.wind.get_wind()  # Get dynamic wind from Weather
         
+        # Simulate gravity displacement
+        gravity_displacements = simulate_gravity(mass=self.load_weight, steps=steps)
+        
         displacements = []
         for i in range(steps):
             time = i * 0.1  # Time step of 0.1 seconds
             # Harmonic oscillation with damping
-            displacement = amplitude * np.sin(2 * np.pi * frequency * time) * np.exp(-self.damping * time)
+            sway = amplitude * np.sin(2 * np.pi * frequency * time) * np.exp(-self.damping * time)
             # Wind effect with directional phase shift
             wind_phase = np.deg2rad(wind_direction)
             wind_effect = wind_speed * 0.02 * np.sin(2 * np.pi * 0.1 * time + wind_phase)
             # Control effect
             control_effect = control_factor * np.cos(2 * np.pi * 0.2 * time)
-            total_displacement = displacement + wind_effect + control_effect
+            # Total lateral sway
+            lateral_displacement = sway + wind_effect + control_effect
+            # Add downward gravity displacement
+            total_displacement = lateral_displacement + gravity_displacements[i]
             displacements.append(total_displacement)
         
         return displacements
@@ -94,7 +102,7 @@ if __name__ == "__main__":
     crane.apply_control(motor_speed=2.0, mode="auto")
     crane.set_wind_direction(45.0)  # Northeast wind
     sway = crane.simulate_crane_sway(steps=5)
-    print(f"Crane sway displacements: {sway}")
+    print(f"Crane total displacements: {sway}")
     stability = crane.get_stability()
     print(f"Crane stability: {stability:.2f}")
     crane.switch_control_mode("manual")
