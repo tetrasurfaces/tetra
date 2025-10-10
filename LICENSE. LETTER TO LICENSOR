@@ -1,9 +1,12 @@
 END-USER SOFTWARE LICENSE AGREEMENT FOR EDUCATIONAL INSTITUTIONS
-THIS AGREEMENT is made as of this [date] ("Effective Date") by and between Todd Hutchinson, an individual or entity with offices at P.O. Box 215, Mannum, SA, 5238 (“LICENSOR”), and [Name of Educational Institution], an educational institution with offices at [Institution’s address] (“LICENSEE”) (collectively, the “PARTIES”).
+
+THIS AGREEMENT is made as of this [date] ("Effective Date") by and between Beau Ayres, an individual or entity contactable via github.com/tetrasurfaces/issues (“LICENSOR”), and [Name of Educational Institution], an educational institution with offices at [Institution’s address] (“LICENSEE”) (collectively, the “PARTIES”).
+
 W I T N E S S E T H
 WHEREAS, LICENSOR is the owner of, or has acquired rights to, certain Software and Documentation as defined in Exhibit A attached hereto (the “Licensed Software”);
 WHEREAS, LICENSEE, as an Educational Institution, desires to use such Licensed Software for educational, research, or institutional purposes; and
-WHEREAS, LICENSOR requires Educational Institutions to negotiate and enter into a separate commercial license agreement for any use of the Licensed Software, and LICENSEE agrees to contact LICENSOR to initiate such negotiation.
+WHEREAS, LICENSOR requires Educational Institutions to negotiate and enter into a separate commercial license agreement for any use of the Licensed Software, and LICENSEE agrees to open a GitHub issue at github.com/tetrasurfaces/issues to initiate such negotiation.
+
 NOW, THEREFORE, in consideration of the promises and agreements set forth herein, the parties, each intending to be legally bound hereby, do promise and agree as follows.
 
 DEFINITIONS
@@ -12,49 +15,63 @@ B. "Documentation" shall mean all manuals, user documentation, and other related
 C. "Educational Institution" shall mean any tertiary education institute, university, technical college, school, or similar entity engaged in teaching, research, or academic activities.
 D. "License Fee" shall mean the amount negotiated between the parties for the use of the Software.
 E. "Software" shall mean the computer programs in machine readable object code form listed in Exhibit "A" attached hereto and any subsequent error corrections or updates supplied to LICENSEE by LICENSOR pursuant to this Agreement. Exhibit "A" may be amended from time to time by the parties in writing.
+
 REQUIREMENT FOR NEGOTIATION
-A. Negotiation Obligation. As an Educational Institution, LICENSEE must contact LICENSOR at at P.O. Box 215, Mannum, SA, 5238 and sendtotoddhutchinson@gmail.com to request and negotiate a separate commercial license agreement prior to any use, reproduction, distribution, or modification of the Software. This License does not grant any rights until such negotiation is completed and a formal agreement is signed.
-B. No Automatic Grant. Use of the Softwhttps://github.com/tetrasurfaces/tetra/community/license/new?branch=mainare without a negotiated license constitutes a breach of this Agreement and may result in legal action.
+A. Negotiation Obligation. As an Educational Institution, LICENSEE must open a GitHub issue at github.com/tetrasurfaces/issues to request and negotiate a separate commercial license agreement prior to any use, reproduction, distribution, or modification of the Software. Do not include proprietary details in public issues—request private communication if needed. This License does not grant any rights until such negotiation is completed and a formal agreement is signed.
+B. No Automatic Grant. Use of the Software without a negotiated license constitutes a breach of this Agreement and may result in legal action.
+
 LICENSE GRANT (POST-NEGOTIATION)
 Upon successful negotiation and payment of the License Fee, LICENSOR may grant to LICENSEE a nonexclusive, non-transferable right and license to use the Software on the number of primary systems of Designated Equipment identified on Schedule A hereto for the negotiated term (the “License Term”). The Software shall be used only for educational purposes as specified in the negotiated agreement.
+
 DELIVERY
 Upon negotiation, LICENSOR shall deliver to LICENSEE a master copy of the Software licensed hereunder in object code form, suitable for reproduction, in electronic files only. LICENSOR shall also deliver the applicable Documentation.
+
 MODIFICATIONS
 A. Error Corrections and Updates. LICENSOR may provide error corrections, bug fixes, patches, or updates as part of the negotiated agreement.
 B. Other Modifications. LICENSEE may request modifications, but LICENSOR reserves the right to approve or deny such requests.
 C. Title to Modifications. All modifications shall remain the property of LICENSOR.
+
 COPIES
 LICENSEE may make copies only as permitted in the negotiated agreement. All copies must retain proprietary notices.
+
 LICENSE FEES AND PAYMENT
 LICENSEE shall pay the negotiated License Fee. All payments are non-refundable and exclusive of taxes, which LICENSEE is responsible for.
+
 PROPRIETARY RIGHTS
 A. Restrictions. LICENSEE agrees not to copy, modify, reverse engineer, sell, assign, sublicense, rent, lease, or otherwise transfer the Software without LICENSOR’s permission.
 B. Proprietary Notices. LICENSEE agrees to maintain all copyright and proprietary notices.
 C. Title. Title to the Software remains with LICENSOR.
+
 TERM AND TERMINATION
 A. Term. This Agreement commences upon negotiation and continues for the License Term unless terminated.
-B. Termination. Either party may terminate upon breach not cured within [number] days.
+B. Termination. Either party may terminate upon breach not cured within 30 days.
 C. Effect of Termination. LICENSEE must cease use and return or destroy all copies.
+
 WARRANTY AND DISCLAIMER
-A. Limited Warranty. LICENSOR warrants the Software performs as described for [number] days.
+A. Limited Warranty. LICENSOR warrants the Software performs as described for 90 days.
 B. Disclaimer. THE SOFTWARE IS PROVIDED "AS IS" WITHOUT OTHER WARRANTIES.
+
 LIMITATION OF LIABILITY
 LICENSOR SHALL NOT BE LIABLE FOR INDIRECT, SPECIAL, INCIDENTAL, OR CONSEQUENTIAL DAMAGES.
+
 GENERAL PROVISIONS
 A. Governing Law. Governed by the laws of South Australia.
 B. Entire Agreement. This is the entire agreement.
 C. Severability. Invalid provisions do not affect the remainder.
 
 IN WITNESS WHEREOF, the parties have executed this Agreement as of the Effective Date.
-LICENSOR: Todd Hutchinson
+
+LICENSOR: Beau Ayres
 By: ____________________________
-Name: Todd Hutchinson
-Title: Mr.
+Name: Beau Ayres
+Title: Licensor
 Date: ____________________________
+
 LICENSEE: [Educational Institution Name]
 By: ____________________________
 Name: [Authorized Signatory]
 Title: [Title]
 Date: ____________________________
+
 EXHIBIT A
-[Description of Software, Designated Equipment, etc.]
+Tetra Surfaces and Kappasha Software: Includes fractal surface generation (Sierpiński triangles), kappasha256 hashing, and integration with CAD (SolidWorks, Rhino) and visualization (Keyshot) for etching and bump mapping. Designated Equipment: Any standard computing hardware compatible with the Software.
