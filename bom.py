@@ -77,15 +77,17 @@ class BOM:
         return self.specs
 
     def resolve_elements(self):
-        """Resolve and update specs with element properties if material is specified."""
+        """Resolve and update specs with element properties and safety ratings."""
         if "material" in self.specs and self.specs["material"].lower() in self.elements:
             element = self.elements[self.specs["material"].lower()]
             self.specs.update({
                 "atomic_weight": getattr(element, "atomic_weight", None),
                 "melting_point": getattr(element, "melting_point", None),
-                "atomic_number": getattr(element, "atomic_number", None)
+                "atomic_number": getattr(element, "atomic_number", None),
+                "safety_rating_fire": element.safety_rating("fire"),
+                "safety_rating_spill": element.safety_rating("spill")
             })
-            print(f"Resolved element properties for {self.specs['material']}")
+            print(f"Resolved element properties and safety ratings for {self.specs['material']}")
         return self.specs
 
     def __str__(self):
