@@ -1,6 +1,6 @@
-Copyright 2025 Beau Ayres
+# Copyright 2025 Beau Ayres
 
-This software is licensed under a custom license based on the Apache License, Version 2.0, with additional terms from the GNU Affero General Public License (AGPL-3.0-or-later) and a proprietary End-User Software License Agreement for Educational Institutions. The full terms are as follows:
+# This software is licensed under a custom license based on the Apache License, Version 2.0, with additional terms from the GNU Affero General Public License (AGPL-3.0-or-later) and a proprietary End-User Software License Agreement for Educational Institutions. The full terms are as follows:
 
 ---
 
@@ -15,7 +15,7 @@ This software is licensed under a custom license based on the Apache License, Ve
 
 #### 2. Grant of Copyright License
 Subject to the terms of this License, Licensor grants a perpetual, worldwide, non-exclusive, no-charge, royalty-free, irrevocable copyright license to reproduce, prepare derivative works of, publicly display, perform, sublicense, and distribute the Work in Source or Object form, provided:
-- For Educational Institutions: Use is restricted to educational, research, or institutional purposes, and requires a negotiated agreement via a GitHub issue at github.com/tetrasurfaces/issues.
+- For Educational Institutions: Use is restricted to educational, research, or institutional purposes (e.g., teaching CAD, Keyshot, or curvature analysis), and requires a negotiated agreement via a GitHub issue at github.com/tetrasurfaces/issues.
 - For non-commercial use: Compliance with Apache 2.0 and AGPL-3.0 terms, including source code sharing for modifications.
 - For Commercial Use: Requires prior written approval from Licensor, requested via a GitHub issue at github.com/tetrasurfaces/issues.
 
@@ -42,13 +42,19 @@ The Work includes cryptographic functionality (kappasha256). Use, distribution, 
 #### 8. Safety and Environmental Compliance
 For physical applications (e.g., molding, etching), comply with safety standards (e.g., UL 1642, IEC 62133) and environmental regulations (e.g., EU Battery Directive 2023/1542). Provide recycling instructions for end-of-life components.
 
-#### 9. Disclaimer of Warranty
+#### 9. Intellectual Property Notice
+Beau Ayres owns all IP related to the tetra and kappasha software, including Sierpiński triangle algorithms, and fractal surface generation for CAD and construction applications. Unauthorized replication or modification is prohibited. 
+
+#### 10. Related Modules
+The iPhone-shaped fish tank module (including gaze-tracking pixel arrays and convex glass etching) is developed in a private repository (`tetrasurfaces/kappashaos`) under xAI’s copyright, with a planned public release. For access or licensing inquiries, open a GitHub issue at github.com/tetrasurfaces/issues.
+
+#### 11. Disclaimer of Warranty
 The Work is provided "AS IS" without warranties of any kind, including TITLE, NON-INFRINGEMENT, MERCHANTABILITY, or FITNESS FOR A PARTICULAR PURPOSE.
 
-#### 10. Limitation of Liability
+#### 12. Limitation of Liability
 Licensor is not liable for any direct, indirect, special, incidental, or consequential damages arising from the use or inability to use the Work.
 
-#### 11. General Provisions
+#### 13. General Provisions
 - **Governing Law**: Laws of South Australia.
 - **Entire Agreement**: This License constitutes the entire agreement.
 - **Severability**: Invalid provisions do not affect the remainder.
