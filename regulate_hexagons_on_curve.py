@@ -30,15 +30,15 @@
 # You should have received a copy of the GNU Affero General Public License
 # along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-
 import numpy as np
 import mpmath
 import hashlib
 import math
-from math_utils import kappa_calc
+from kappasha.greenlet.hashlet.utils.math_utils import kappa_calc
 mpmath.mp.dps = 19
-from ribit import ribit_generate
-from kappasha import mersenne_fluctuation
+from tetra.ribit import ribit_generate
+from KappashaOS.src.hash.kappasha256 import mersenne_fluctuation
+
 PHI_FLOAT = (1 + math.sqrt(5)) / 2  # φ ≈1.618
 MODULO = 369  # Cyclic diffusion
 
