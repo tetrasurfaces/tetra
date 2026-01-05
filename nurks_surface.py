@@ -36,10 +36,14 @@ import struct
 import math
 import mpmath
 mpmath.mp.dps = 19  # Precision for φ, π.
-from KappaSHA256 import kappasha256
-from ribit import ribit_generate
-from kappawise import kappa_coord
-from green_curve import bspline_basis, custom_interoperations_green_curve
+import os
+import sys
+from datetime import datetime
+sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), 'KappashaOS')))
+from KappashaOS.src.hash.kappasha_256 import hash_surface
+from tetra.ribit import ribit_generate
+from KappashaOS.kappawise import kappa_coord
+from tetra.green_curve import bspline_basis, custom_interoperations_green_curve
 
 u_num = 36
 v_num = 20
