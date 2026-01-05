@@ -33,7 +33,7 @@
 import hashlib
 import numpy as np
 import mpmath
-from wise_transforms import bitwise_transform, hexwise_transform, hashwise_transform
+from KappashaOS.dev_utils.wise_transforms import bitwise_transform, hexwise_transform, hashwise_transform
 mpmath.mp.dps = 19
 
 def ribit_generate(data):
