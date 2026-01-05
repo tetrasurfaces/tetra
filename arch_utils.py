@@ -50,8 +50,8 @@
 import numpy as np
 import json
 import os
-from kappasha256 import hash_surface
-from tetra.revocation_stub import check_revocation
+from KappashaOS.src.hash.kappasha256 import hash_surface
+from KappashaOS.software.proto.revocation_stub import check_revocation
 
 def read_config(config_file="config/config.json"):
     """Read intent and commercial use from config file with error handling."""
