@@ -51,9 +51,9 @@ except ImportError:
     print("mpld3 not installed. HTML export will be skipped. Install mpld3 with 'pip install mpld3' to enable.")
     MPLD3_AVAILABLE = False
 
-from temperature_salt import secure_hash_two
-from kappa_grid import kappa_grid
-from green_curve import bspline_basis, custom_interoperations_green_curve
+from hashlet.temperature_salt import secure_hash_two
+from tetra.kappa_grid import kappa_grid
+from tetra.green_curve import bspline_basis, custom_interoperations_green_curve
 
 # Set precision for Decimal
 getcontext().prec = 28
