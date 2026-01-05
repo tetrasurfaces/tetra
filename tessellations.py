@@ -34,7 +34,7 @@ import numpy as np
 import hashlib
 import struct
 from scipy.spatial import Voronoi, Delaunay  # For Voronoi diagram
-from regulate_hexagons_on_curve import regulate_hexagons_on_curve
+from tetra.regulate_hexagons_on_curve import regulate_hexagons_on_curve
 
 def tessellate_hex_mesh(X, Y, Z, u_num, v_num, param_str, is_cap=False):
     """Tessellate surface into hexagonal mesh, triangulated for STL."""
